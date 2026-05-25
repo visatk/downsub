@@ -1,148 +1,68 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import cloudflareLogo from './assets/cloudflare.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { useState } from 'react';
 
-function App() {
-  const [count, setCount] = useState(0)
-  const [name, setName] = useState('unknown')
+export default function App() {
+  const [isJoined, setIsJoined] = useState(false);
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
+    <div className="min-h-screen bg-gray-50 text-slate-900 font-sans">
+      {/* Header */}
+      <header className="p-6 flex items-center justify-between max-w-4xl mx-auto">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center text-white font-bold text-xl">
+            T
+          </div>
+          <div>
+            <h1 className="font-bold text-lg">Tech Insights</h1>
+            <p className="text-xs text-slate-500">24.5k subscribers</p>
+          </div>
         </div>
-        <div>
-          <h1>Get started with Cloudflare</h1>
-          <p>
-            Edit <code>src/App.tsx</code> or <code>worker/index.ts</code> and save to test <code>HMR</code>
+        <a 
+          href="https://t.me/your_channel_link" 
+          className="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-full font-semibold text-sm transition-all"
+        >
+          Join
+        </a>
+      </header>
+
+      {/* Hero Section */}
+      <main className="max-w-4xl mx-auto px-6 py-12">
+        <section className="text-center mb-16">
+          <h2 className="text-4xl font-extrabold mb-4">Deep dives into edge computing</h2>
+          <p className="text-lg text-slate-600 max-w-xl mx-auto mb-8">
+            Daily updates on Cloudflare Workers, distributed systems, and modern architecture. Join our growing community of engineers.
           </p>
-        </div>
-        <ul style={{ display: 'flex', gap: '1rem', listStyle: 'none', padding: 0 }}>
-          <li>
-            <button
-              className="counter"
-              onClick={() => setCount((count) => count + 1)}
-            >
-              Count is {count}
-            </button>
-          </li>
-          <li>
-          <button
-            className="counter"
-            onClick={() => {
-              fetch('/api/')
-                .then((res) => res.json())
-                .then((data) => setName(data.name))
-            }}
-            aria-label='get name'
+          <button 
+            onClick={() => setIsJoined(!isJoined)}
+            className={`px-8 py-3 rounded-xl font-bold transition-all ${
+              isJoined ? 'bg-green-600 text-white' : 'bg-slate-900 text-white hover:bg-slate-800'
+            }`}
           >
-            Name from API is: {name}
+            {isJoined ? '✓ Joined' : 'Join Channel'}
           </button>
-          </li>
-        </ul>
+        </section>
 
+        {/* Content Feed Preview */}
+        <section className="bg-white rounded-3xl p-8 shadow-sm border border-slate-100">
+          <h3 className="text-xl font-bold mb-6">Latest Discussions</h3>
+          <div className="space-y-6">
+            {[
+              { title: "Optimizing Durable Objects", date: "May 24" },
+              { title: "Cold Starts vs. Warm Pools", date: "May 22" },
+              { title: "Why Hyperdrive is a game changer", date: "May 20" }
+            ].map((post, i) => (
+              <div key={i} className="flex justify-between items-center border-b border-slate-50 pb-4 last:border-0 last:pb-0">
+                <span className="font-medium text-slate-700">{post.title}</span>
+                <span className="text-xs text-slate-400">{post.date}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      </main>
 
-      </section>
-
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-            <li>
-              <a href="https://workers.cloudflare.com/" target="_blank">
-                <img className="button-icon" src={cloudflareLogo} alt="" />
-                Workers Docs
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+      {/* Footer */}
+      <footer className="text-center py-12 text-slate-400 text-sm">
+        <p>© 2026 Tech Insights Channel. Built on Cloudflare.</p>
+      </footer>
+    </div>
+  );
 }
-
-export default App
