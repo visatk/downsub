@@ -73,28 +73,42 @@ function cleanXmlText(raw: string): string {
 /**
  * Parse YouTube XML timed-text format.
  * Example: <text start="1.23" dur="2.0">Hello &amp; world</text>
+ * Or: <p t="1230" d="2000">Hello &amp; world</p> (used by some endpoints)
  */
 function parseYouTubeXml(xml: string): Caption[] {
   const captions: Caption[] = [];
-  // Use a simple regex — Workers have no DOMParser
-  const re = /<text\s+start="([\d.]+)"\s+dur="([\d.]+)"[^>]*>([\s\S]*?)<\/text>/g;
+  // Match either <text start="1.23" dur="2.0"> or <p t="1230" d="2000"> 
+  // We'll capture the whole tag and extract attributes
+  const re = /<(?:text|p)\s+([^>]+)>([\s\S]*?)<\/(?:text|p)>/g;
   let m: RegExpExecArray | null;
+  
   while ((m = re.exec(xml)) !== null) {
-    const startMs = Math.round(parseFloat(m[1]) * 1_000);
-    const durMs = Math.round(parseFloat(m[2]) * 1_000);
-    const text = cleanXmlText(m[3]);
-    if (text) captions.push({ startMs, endMs: startMs + durMs, text });
-  }
-  // Some YouTube formats have start but no dur — handle gracefully
-  if (captions.length === 0) {
-    // Try without dur attribute
-    const re2 = /<text\s+start="([\d.]+)"[^>]*>([\s\S]*?)<\/text>/g;
-    while ((m = re2.exec(xml)) !== null) {
-      const startMs = Math.round(parseFloat(m[1]) * 1_000);
-      const text = cleanXmlText(m[2]);
-      if (text) captions.push({ startMs, endMs: startMs + 3_000, text });
+    const attrs = m[1];
+    const rawText = m[2];
+    
+    // Extract start/t
+    let startMs = 0;
+    const startMatch = attrs.match(/(?:start|t)="([\d.]+)"/);
+    if (startMatch) {
+      const val = parseFloat(startMatch[1]);
+      // If it's 't', it's already in ms. If 'start', it's in seconds.
+      startMs = attrs.includes('t=') ? Math.round(val) : Math.round(val * 1_000);
+    }
+    
+    // Extract dur/d
+    let durMs = 3_000; // Default duration
+    const durMatch = attrs.match(/(?:dur|d)="([\d.]+)"/);
+    if (durMatch) {
+      const val = parseFloat(durMatch[1]);
+      durMs = attrs.includes('d=') ? Math.round(val) : Math.round(val * 1_000);
+    }
+
+    const text = cleanXmlText(rawText);
+    if (text) {
+      captions.push({ startMs, endMs: startMs + durMs, text });
     }
   }
+  
   return captions;
 }
 

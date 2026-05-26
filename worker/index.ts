@@ -146,6 +146,11 @@ app.get('/api/download', async (c) => {
     'player.vimeo.com',
     'dailymotion.com',
     'v.dmcdn.net',
+    // Invidious instances
+    'nadeko.net',
+    'nerdvpn.de',
+    'artemislena.eu',
+    'melmac.space',
   ];
   const isAllowed = ALLOWED_ORIGINS.some(
     (origin) => parsedCaption.hostname === origin || parsedCaption.hostname.endsWith(`.${origin}`)

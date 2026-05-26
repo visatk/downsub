@@ -1,62 +1,150 @@
 import type { Extractor, ExtractorResult } from './base';
 
-// Match all YouTube URL patterns robustly
-const YT_ID_REGEX = /(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([0-9A-Za-z_-]{11})/;
+// ── YouTube URL patterns ─────────────────────────────────────────────────────
+const YT_ID_REGEX =
+  /(?:youtube\.com\/(?:[^/]+\/.+\/|(?:v|e(?:mbed)?|shorts)\/|.*[?&]v=)|youtu\.be\/)([0-9A-Za-z_-]{11})/;
 
-// Robust regex to extract ytInitialPlayerResponse from YouTube HTML
-// Uses multiple fallback strategies
+// ── Realistic browser headers ────────────────────────────────────────────────
+// Mimics a Chrome 125 browser session. Essential for avoiding YouTube bot detection.
+const BROWSER_HEADERS = {
+  'User-Agent':
+    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.6422.141 Safari/537.36',
+  'Accept':
+    'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+  'Accept-Language': 'en-US,en;q=0.9',
+  'Accept-Encoding': 'gzip, deflate, br',
+  'Sec-Ch-Ua': '"Google Chrome";v="125", "Chromium";v="125", "Not.A/Brand";v="24"',
+  'Sec-Ch-Ua-Mobile': '?0',
+  'Sec-Ch-Ua-Platform': '"Windows"',
+  'Sec-Fetch-Dest': 'document',
+  'Sec-Fetch-Mode': 'navigate',
+  'Sec-Fetch-Site': 'none',
+  'Sec-Fetch-User': '?1',
+  'Upgrade-Insecure-Requests': '1',
+  'Cache-Control': 'no-cache',
+  'Pragma': 'no-cache',
+};
+
+// ── Strategy 1: Scrape ytInitialPlayerResponse from HTML ─────────────────────
 function extractPlayerResponse(html: string): any {
-  const strategies = [
-    // Strategy 1: Followed by semicolon + var/let/const
-    /ytInitialPlayerResponse\s*=\s*(\{.+?\})\s*;[\s\S]*?(?:var |let |const |\<\/script)/,
-    // Strategy 2: Greedy up to known terminator
-    /ytInitialPlayerResponse\s*=\s*(\{[\s\S]+?\});\s*(?:var|if|window)/,
-    // Strategy 3: Broad match
+  // Strategy A: inline var followed by terminator keywords
+  const patterns = [
+    /ytInitialPlayerResponse\s*=\s*(\{.+?\})\s*;[\s\S]*?(?:var |let |const |<\/script)/,
+    /ytInitialPlayerResponse\s*=\s*(\{[\s\S]+?\});\s*(?:var|if|window|ytInitialData)/,
     /ytInitialPlayerResponse\s*=\s*(\{[\s\S]+?\})\s*;/,
   ];
 
-  for (const pattern of strategies) {
-    const match = html.match(pattern);
-    if (match?.[1]) {
-      try {
-        return JSON.parse(match[1]);
-      } catch {
-        // Try next strategy
-      }
+  for (const pat of patterns) {
+    const m = html.match(pat);
+    if (m?.[1]) {
+      try { return JSON.parse(m[1]); } catch { /* try next */ }
     }
   }
 
-  // Strategy 4: Find ytInitialPlayerResponse within a script tag content
-  const scriptMatches = html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi);
-  for (const scriptMatch of scriptMatches) {
-    const scriptContent = scriptMatch[1];
-    if (!scriptContent.includes('ytInitialPlayerResponse')) continue;
-    const idx = scriptContent.indexOf('ytInitialPlayerResponse');
-    if (idx === -1) continue;
-    const start = scriptContent.indexOf('{', idx);
+  // Strategy B: bracket-count parse inside each <script> block
+  for (const scriptM of html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)) {
+    const src = scriptM[1];
+    if (!src.includes('ytInitialPlayerResponse')) continue;
+    const idx = src.indexOf('ytInitialPlayerResponse');
+    const start = src.indexOf('{', idx);
     if (start === -1) continue;
-
-    // Bracket-count parse
-    let depth = 0;
-    let end = -1;
-    for (let i = start; i < scriptContent.length; i++) {
-      if (scriptContent[i] === '{') depth++;
-      else if (scriptContent[i] === '}') {
-        depth--;
-        if (depth === 0) { end = i; break; }
-      }
+    let depth = 0, end = -1;
+    for (let i = start; i < src.length; i++) {
+      if (src[i] === '{') depth++;
+      else if (src[i] === '}' && --depth === 0) { end = i; break; }
     }
     if (end === -1) continue;
-    try {
-      return JSON.parse(scriptContent.slice(start, end + 1));
-    } catch {
-      // Try next script tag
-    }
+    try { return JSON.parse(src.slice(start, end + 1)); } catch { /* next */ }
   }
 
   return null;
 }
 
+// ── Strategy 2: Invidious public instances (no rate-limiting) ────────────────
+// Invidious is an open-source YouTube front-end that exposes a subtitle API.
+// We try several well-known public instances in order.
+const INVIDIOUS_INSTANCES = [
+  'https://inv.nadeko.net',
+  'https://invidious.nerdvpn.de',
+  'https://yt.artemislena.eu',
+  'https://iv.melmac.space',
+];
+
+interface InvidiousCaption {
+  label: string;
+  language_code: string;
+  url: string;
+}
+
+async function extractViaInvidious(
+  videoId: string,
+  signal: AbortSignal
+): Promise<ExtractorResult | null> {
+  for (const instance of INVIDIOUS_INSTANCES) {
+    try {
+      const res = await fetch(`${instance}/api/v1/videos/${videoId}?fields=title,videoThumbnails,captions`, {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'SubFetch/2.0 (subtitle downloader)',
+        },
+        signal,
+      });
+      if (!res.ok) continue;
+      const data: any = await res.json();
+      if (!data?.captions?.length) continue;
+
+      const subtitles = (data.captions as InvidiousCaption[]).map((cap) => {
+        // Invidious caption URLs are relative paths — prefix with the instance
+        const captionUrl = cap.url.startsWith('http')
+          ? cap.url
+          : `${instance}${cap.url}`;
+        const isAsr = cap.label?.toLowerCase().includes('auto') || cap.language_code?.endsWith('-auto');
+        return {
+          language: isAsr ? `${cap.label} (Auto-generated)` : cap.label,
+          languageCode: cap.language_code ?? 'unknown',
+          url: captionUrl,
+          format: 'vtt',
+          isAutoGenerated: isAsr,
+          name: cap.label,
+        };
+      });
+
+      if (subtitles.length === 0) continue;
+
+      // Best thumbnail
+      const thumbs: any[] = data.videoThumbnails ?? [];
+      const thumb =
+        thumbs.find((t: any) => t.quality === 'maxres')?.url ??
+        thumbs.find((t: any) => t.quality === 'sddefault')?.url ??
+        `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
+
+      return {
+        platform: 'YouTube',
+        title: data.title ?? 'YouTube Video',
+        thumbnail: thumb,
+        subtitles,
+      };
+    } catch {
+      // This instance failed — try next
+    }
+  }
+  return null;
+}
+
+// ── Strategy 3: YouTube JSON3 caption API directly ───────────────────────────
+// When we have the playerResponse, we can construct json3 URLs for each track.
+// This avoids a second HTML scrape and gives us a stable machine-readable format.
+function buildJson3Url(baseUrl: string): string {
+  try {
+    const u = new URL(baseUrl);
+    u.searchParams.set('fmt', 'json3');
+    return u.toString();
+  } catch {
+    return baseUrl;
+  }
+}
+
+// ── Main extractor ───────────────────────────────────────────────────────────
 export const youtubeExtractor: Extractor = {
   id: 'youtube',
   canHandle: (url) => /(?:youtube\.com|youtu\.be)/.test(url),
@@ -69,80 +157,118 @@ export const youtubeExtractor: Extractor = {
       throw new Error('Invalid YouTube URL — could not find a valid video ID.');
     }
 
-    // Fetch YouTube page with realistic browser headers
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15_000);
+    const timeout = setTimeout(() => controller.abort(), 20_000);
 
-    let html: string;
     try {
-      const response = await fetch(`https://www.youtube.com/watch?v=${videoId}&hl=en`, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
-          'Accept-Language': 'en-US,en;q=0.9',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Cache-Control': 'no-cache',
-        },
-        signal: controller.signal,
-      });
+      // ── Attempt 1: Direct HTML scrape ──────────────────────────────────────
+      let html: string | null = null;
+      let httpStatus = 0;
 
-      if (response.status === 404) throw new Error('YouTube video not found. Check the URL.');
-      if (!response.ok) throw new Error(`YouTube returned HTTP ${response.status}.`);
-      html = await response.text();
+      try {
+        const res = await fetch(
+          `https://www.youtube.com/watch?v=${videoId}&hl=en&gl=US`,
+          { headers: BROWSER_HEADERS, signal: controller.signal }
+        );
+        httpStatus = res.status;
+
+        if (res.status === 404) {
+          throw new Error('YouTube video not found. Check the URL and try again.');
+        }
+
+        if (res.ok) {
+          html = await res.text();
+        }
+        // 429 / 5xx → fall through to Invidious
+      } catch (fetchErr: unknown) {
+        if (fetchErr instanceof Error && fetchErr.name === 'AbortError') throw fetchErr;
+        // Network error — fall through to Invidious
+      }
+
+      // Try parsing the HTML we got
+      if (html) {
+        const playerData = extractPlayerResponse(html);
+
+        if (playerData) {
+          // Check playability
+          const ps = playerData?.playabilityStatus?.status;
+          if (ps === 'LOGIN_REQUIRED') {
+            throw new Error(
+              'This video is age-restricted or private. Subtitles cannot be extracted without login.'
+            );
+          }
+          if (ps === 'UNPLAYABLE') {
+            const reason = playerData?.playabilityStatus?.reason ?? 'Video is unplayable.';
+            throw new Error(reason);
+          }
+
+          const captionRenderer = playerData?.captions?.playerCaptionsTracklistRenderer;
+          const tracks: any[] = captionRenderer?.captionTracks ?? [];
+          const videoDetails = playerData?.videoDetails;
+
+          if (tracks.length > 0) {
+            const subtitles = tracks.map((track: any) => {
+              const isAsr = track.kind === 'asr';
+              const langCode: string = track.languageCode ?? 'unknown';
+              const langName: string =
+                track.name?.simpleText ??
+                track.name?.runs?.[0]?.text ??
+                langCode;
+              // Request json3 format — more reliable than XML for conversion
+              const captionUrl: string = track.baseUrl
+                ? buildJson3Url(track.baseUrl)
+                : '';
+
+              return {
+                language: isAsr ? `${langName} (Auto-generated)` : langName,
+                languageCode: langCode,
+                url: captionUrl,
+                format: 'json3',
+                isAutoGenerated: isAsr,
+                name: langName,
+              };
+            });
+
+            const thumbnail =
+              `https://i.ytimg.com/vi/${videoDetails?.videoId ?? videoId}/maxresdefault.jpg`;
+
+            return {
+              platform: 'YouTube',
+              title: videoDetails?.title ?? 'YouTube Video',
+              thumbnail,
+              subtitles,
+            };
+          }
+
+          // playerData found but no caption tracks
+          if (playerData) {
+            throw new Error(
+              'No subtitles or closed captions are available for this video. The creator may not have added captions.'
+            );
+          }
+        }
+      }
+
+      // ── Attempt 2: Invidious fallback ─────────────────────────────────────
+      // Triggered when: HTTP 429, HTML scrape failed, or playerData not found.
+      const invResult = await extractViaInvidious(videoId, controller.signal);
+      if (invResult) return invResult;
+
+      // ── All strategies exhausted ──────────────────────────────────────────
+      if (httpStatus === 429) {
+        throw new Error(
+          'YouTube is temporarily blocking requests from this server (rate limit). ' +
+          'Please wait a few minutes and try again, or try a different video.'
+        );
+      }
+
+      throw new Error(
+        'Could not extract video data. The video may be private, age-restricted, ' +
+        'or unavailable. If this persists, please try again in a moment.'
+      );
+
     } finally {
       clearTimeout(timeout);
     }
-
-    const playerData = extractPlayerResponse(html);
-
-    if (!playerData) {
-      throw new Error('Could not extract video data. The video may be private, age-restricted, or unavailable in this region.');
-    }
-
-    // Validate playability
-    const playabilityStatus = playerData?.playabilityStatus?.status;
-    if (playabilityStatus === 'LOGIN_REQUIRED') {
-      throw new Error('This video requires login (age-restricted or private). Cannot extract subtitles.');
-    }
-    if (playabilityStatus === 'UNPLAYABLE') {
-      const reason = playerData?.playabilityStatus?.reason || 'Video is unplayable.';
-      throw new Error(reason);
-    }
-
-    const videoDetails = playerData?.videoDetails;
-    const captionRenderer = playerData?.captions?.playerCaptionsTracklistRenderer;
-    const tracks: any[] = captionRenderer?.captionTracks ?? [];
-
-    if (tracks.length === 0) {
-      throw new Error('No subtitles or closed captions are available for this video. The creator may not have added captions.');
-    }
-
-    const thumbnail = videoDetails?.videoId
-      ? `https://i.ytimg.com/vi/${videoDetails.videoId}/maxresdefault.jpg`
-      : `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`;
-
-    const subtitles = tracks.map((track: any) => {
-      const isAsr = track.kind === 'asr';
-      const langCode: string = track.languageCode ?? 'unknown';
-      const langName: string = track.name?.simpleText ?? track.name?.runs?.[0]?.text ?? langCode;
-      // baseUrl is the raw timed-text XML URL
-      const captionUrl: string = track.baseUrl ?? '';
-
-      return {
-        language: isAsr ? `${langName} (Auto-generated)` : langName,
-        languageCode: langCode,
-        url: captionUrl,
-        format: 'xml',
-        isAutoGenerated: isAsr,
-        name: langName,
-      };
-    });
-
-    return {
-      platform: 'YouTube',
-      title: videoDetails?.title ?? 'YouTube Video',
-      thumbnail,
-      subtitles,
-    };
   },
 };
