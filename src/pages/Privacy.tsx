@@ -73,7 +73,8 @@ export default function Privacy() {
           <Highlight icon={<Shield className="w-5 h-5" />} title="Cloudflare edge" desc="Requests route through Cloudflare's global network — never to our own servers." />
         </div>
 
-        <div className="card p-8 sm:p-10">
+        <div className="card-glass p-8 sm:p-10 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-1" style={{ background: 'linear-gradient(90deg, var(--accent), var(--accent-2))', opacity: 0.8 }} />
 
           <Section id="overview" title="1. Overview">
             <p>

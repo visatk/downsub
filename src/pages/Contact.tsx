@@ -24,7 +24,7 @@ const FAQS = [
 
 function FAQItem({ q, a, index }: { q: string; a: string; index: number }) {
   return (
-    <details className="card overflow-hidden anim-slide-up" style={{ opacity: 0, animationDelay: `${index * 70}ms` }}>
+    <details className="card-glass overflow-hidden anim-slide-up group" style={{ opacity: 0, animationDelay: `${index * 70}ms` }}>
       <summary className="flex items-center justify-between gap-4 p-5 font-semibold text-white hover:text-[var(--accent)] transition-colors cursor-pointer">
         <span className="text-sm">{q}</span>
         <ChevronDown className="chevron w-4 h-4 shrink-0" style={{ color: 'var(--text-muted)' }} />
@@ -97,7 +97,8 @@ export default function Contact() {
 
           {/* Left — Form */}
           <div className="lg:col-span-3">
-            <div className="card p-7 sm:p-9 anim-slide-up" style={{ opacity: 0, animationDelay: '50ms' }}>
+            <div className="card-glass p-7 sm:p-9 anim-slide-up relative overflow-hidden" style={{ opacity: 0, animationDelay: '50ms' }}>
+              <div className="absolute top-0 left-0 w-full h-1" style={{ background: 'linear-gradient(90deg, var(--accent), var(--accent-2))', opacity: 0.8 }} />
               {formState === 'success' ? (
                 <div className="flex flex-col items-center text-center py-10 gap-5">
                   <div className="btn-primary w-16 h-16" style={{ borderRadius: 'var(--r-full)', padding: 0 }}>

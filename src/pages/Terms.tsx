@@ -63,7 +63,8 @@ export default function Terms() {
           </div>
         </div>
 
-        <div className="card p-8 sm:p-10">
+        <div className="card-glass p-8 sm:p-10 relative overflow-hidden">
+          <div className="absolute top-0 left-0 w-full h-1" style={{ background: 'linear-gradient(90deg, var(--accent), var(--accent-2))', opacity: 0.8 }} />
 
           <Section id="acceptance" title="1. Acceptance of Terms">
             <p>

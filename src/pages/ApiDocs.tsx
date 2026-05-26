@@ -17,7 +17,14 @@ function CodeBlock({ code, language = 'json' }: { code: string; language?: strin
     <div className="relative group rounded-xl overflow-hidden border" style={{ borderColor: 'var(--border)', background: 'rgba(6,8,15,0.7)' }}>
       {/* Header bar */}
       <div className="flex items-center justify-between px-4 py-2.5 border-b" style={{ borderColor: 'var(--border)', background: 'rgba(255,255,255,0.02)' }}>
-        <span className="text-xs font-mono font-bold" style={{ color: 'var(--text-muted)' }}>{language}</span>
+        <div className="flex items-center gap-3">
+          <div className="flex gap-1.5 hide-sm">
+            <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#ff5f56' }} />
+            <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#ffbd2e' }} />
+            <div className="w-2.5 h-2.5 rounded-full" style={{ background: '#27c93f' }} />
+          </div>
+          <span className="text-[11px] font-mono font-bold uppercase tracking-wider" style={{ color: 'var(--text-muted)' }}>{language}</span>
+        </div>
         <button
           onClick={handleCopy}
           className="flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded-md transition-all hover:bg-white/5"
@@ -49,17 +56,17 @@ function Endpoint({
     GET: '#4ade80', POST: '#a899ff',
   };
   return (
-    <div className="card overflow-hidden mb-6 anim-slide-up" style={{ opacity: 0, animationDelay: `${idx * 80}ms` }} id={`endpoint-${idx}`}>
+    <div className="card-glass overflow-hidden mb-6 anim-slide-up" style={{ opacity: 0, animationDelay: `${idx * 80}ms` }} id={`endpoint-${idx}`}>
       {/* Endpoint header */}
-      <div className="p-5 sm:p-6 border-b flex flex-wrap items-center gap-3" style={{ borderColor: 'var(--border)' }}>
-        <span className="px-3 py-1 rounded-lg text-xs font-black font-mono"
+      <div className="p-5 sm:p-6 border-b flex flex-wrap items-center gap-3 relative" style={{ borderColor: 'var(--border)', background: 'linear-gradient(180deg, rgba(255,255,255,0.03) 0%, transparent 100%)' }}>
+        <span className="px-3 py-1 rounded-lg text-xs font-black font-mono shadow-sm"
           style={{ background: methodColors[method] || 'rgba(108,99,255,0.15)', color: methodText[method] || '#a899ff' }}>
           {method}
         </span>
         <code className="font-mono text-sm font-bold text-white bg-transparent break-all">
           {path}
         </code>
-        <span className="text-sm" style={{ color: 'var(--text-muted)' }}>{desc}</span>
+        <span className="text-sm" style={{ color: 'var(--text-subtle)' }}>{desc}</span>
       </div>
 
       <div className="p-5 sm:p-6 space-y-6">
