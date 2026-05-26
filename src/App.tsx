@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Download, Search, AlertCircle, PlayCircle, FileText, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { Download, Search, AlertCircle, FileText, ChevronRight, CheckCircle2 } from 'lucide-react';
 
 interface Subtitle {
   language: string;
