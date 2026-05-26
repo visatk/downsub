@@ -1,18 +1,13 @@
-/**
- * Home — Main subtitle extraction tool page.
- * Extracted from App.tsx into a proper page component.
- */
-
 import { useState, useCallback, useRef, useEffect, memo } from 'react';
 import {
-  Download, Search, AlertCircle, Zap, Shield, Globe2,
-  CheckCircle2, ChevronDown, Clock, Trash2, ExternalLink,
-  FileText, Captions, Sparkles, Play, RefreshCw,
+  Download, Search, AlertCircle, Zap, Shield, Globe2, ChevronDown,
+  CheckCircle2, Clock, Trash2, ExternalLink, FileText, Captions,
+  Sparkles, Play, RefreshCw, ClosedCaption, ArrowRight,
 } from 'lucide-react';
 import Layout from '../components/Layout';
 import { usePageMeta } from '../hooks/usePageMeta';
 
-// ── Types ────────────────────────────────────────────────────────────────────
+/* ── Types ──────────────────────────────────────────────────────── */
 interface Subtitle {
   language: string;
   languageCode: string;
@@ -39,43 +34,50 @@ interface RecentSearch {
 
 type DownloadFormat = 'srt' | 'vtt' | 'txt';
 
-// ── Config ───────────────────────────────────────────────────────────────────
-const PLATFORMS: Record<string, { badge: string; icon: string; color: string }> = {
-  YouTube:     { badge: 'badge-youtube', icon: '▶', color: 'var(--yt)'    },
-  Vimeo:       { badge: 'badge-vimeo',   icon: '◈', color: 'var(--vimeo)' },
-  Dailymotion: { badge: 'badge-dm',      icon: '◉', color: 'var(--dm)'    },
+/* ── Config ─────────────────────────────────────────────────────── */
+const PLATFORMS: Record<string, { badge: string; color: string; label: string; dot: string }> = {
+  YouTube:     { badge: 'badge-youtube', color: 'var(--yt)',    label: 'YouTube',     dot: '#ff4444' },
+  Vimeo:       { badge: 'badge-vimeo',   color: 'var(--vimeo)', label: 'Vimeo',       dot: '#19b7ea' },
+  Dailymotion: { badge: 'badge-dm',      color: 'var(--dm)',    label: 'Dailymotion', dot: '#f5a623' },
 };
 
-const FORMATS: Record<DownloadFormat, { label: string; title: string }> = {
-  srt: { label: 'SRT', title: 'SubRip — for video editors & media players' },
-  vtt: { label: 'VTT', title: 'WebVTT — for web players & browsers'        },
-  txt: { label: 'TXT', title: 'Plain text — for reading, AI & research'     },
+const FORMATS: Record<DownloadFormat, { label: string; desc: string; color: string }> = {
+  srt: { label: 'SRT', desc: 'Video editors & media players',  color: 'rgba(108,99,255,0.6)'  },
+  vtt: { label: 'VTT', desc: 'Web players & browsers',         color: 'rgba(168,85,247,0.6)'  },
+  txt: { label: 'TXT', desc: 'Reading, AI & research',         color: 'rgba(236,72,153,0.6)'  },
 };
+
+const STATS = [
+  { value: '50M+', label: 'Subtitles downloaded' },
+  { value: '3',    label: 'Platforms supported'  },
+  { value: '100+', label: 'Languages available'  },
+  { value: '0',    label: 'Account required'     },
+];
 
 const FAQS = [
   {
-    q: 'Which video platforms are supported?',
-    a: 'SubFetch supports YouTube (including auto-generated captions), Vimeo, and Dailymotion. More platforms are on the roadmap.',
+    q: 'Which platforms are supported?',
+    a: 'SubFetch supports YouTube (including auto-generated ASR captions), Vimeo, and Dailymotion. More platforms are coming soon.',
   },
   {
     q: 'What subtitle formats can I download?',
-    a: 'You can download in SRT (for video editors and most media players), VTT (for web players), or TXT (plain text — great for AI summarization, translation, or research).',
+    a: 'Download in SRT (for video editors and most media players), VTT (for web players and browsers), or TXT (plain text — ideal for AI summarisation, translation, or research).',
   },
   {
     q: 'Are auto-generated captions supported?',
-    a: 'Yes! YouTube auto-generated (ASR) captions are listed with an "Auto" badge so you can tell them apart from manually added subtitles.',
+    a: "Yes! YouTube's speech-recognition captions are listed alongside manual subtitles and clearly labelled with an 'Auto' badge.",
   },
   {
-    q: 'Is it free and safe to use?',
-    a: "Completely free — no sign-up, no watermarks, no limits. Your URLs are never stored. The Worker is stateless and runs on Cloudflare's global edge network.",
+    q: 'Is it free? Do I need to sign up?',
+    a: "Completely free, no account required. Your URLs are never stored — every request is stateless and runs on Cloudflare's global edge network.",
   },
   {
-    q: "Why doesn't a video have subtitles?",
-    a: 'Captions must be enabled by the video uploader. Private, age-restricted, or live videos often have no subtitles available.',
+    q: "Why does a video show 'no subtitles found'?",
+    a: 'Captions must be added by the video creator. Private, age-restricted, or live-stream videos often have no captions available.',
   },
 ];
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+/* ── Helpers ────────────────────────────────────────────────────── */
 function detectPlatform(url: string): string | null {
   if (/youtube\.com|youtu\.be/.test(url)) return 'YouTube';
   if (/vimeo\.com/.test(url)) return 'Vimeo';
@@ -95,17 +97,49 @@ function saveRecent(item: RecentSearch) {
   } catch {}
 }
 
-// ── Sub-components ────────────────────────────────────────────────────────────
+function timeAgo(ts: number) {
+  const secs = Math.floor((Date.now() - ts) / 1000);
+  if (secs < 60)   return 'just now';
+  if (secs < 3600) return `${Math.floor(secs / 60)}m ago`;
+  if (secs < 86400) return `${Math.floor(secs / 3600)}h ago`;
+  return `${Math.floor(secs / 86400)}d ago`;
+}
+
+/* ── Sub-components ─────────────────────────────────────────────── */
+
+function StatBadge({ value, label }: { value: string; label: string }) {
+  return (
+    <div style={{ textAlign: 'center', padding: '12px 20px' }}>
+      <div style={{
+        fontSize: 'clamp(1.25rem, 3vw, 1.75rem)',
+        fontWeight: 900,
+        fontFamily: 'var(--font-head)',
+        background: 'var(--grad-brand)',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+        backgroundClip: 'text',
+        lineHeight: 1.1,
+        marginBottom: 4,
+      }}>{value}</div>
+      <div style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontWeight: 500, letterSpacing: '0.04em' }}>{label}</div>
+    </div>
+  );
+}
 
 function SkeletonCard() {
   return (
-    <div className="card p-5 flex gap-4 items-center" aria-hidden="true">
-      <div className="skel anim-shimmer w-11 h-11 rounded-lg" />
-      <div className="flex-1 space-y-2">
-        <div className="skel anim-shimmer h-4 w-28 rounded" />
-        <div className="skel anim-shimmer h-3 w-16 rounded" />
+    <div className="card" style={{ padding: '16px 20px', display: 'flex', gap: 16, alignItems: 'center' }} aria-hidden="true">
+      <div className="skel anim-shimmer" style={{ width: 44, height: 44, borderRadius: 'var(--r-md)', flexShrink: 0 }} />
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="skel anim-shimmer" style={{ height: 14, width: '40%', borderRadius: 6 }} />
+        <div className="skel anim-shimmer" style={{ height: 11, width: '25%', borderRadius: 4 }} />
       </div>
-      <div className="skel anim-shimmer h-9 w-24 rounded-xl" />
+      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+        {['srt','vtt','txt'].map(f => (
+          <div key={f} className="skel anim-shimmer" style={{ height: 28, width: 42, borderRadius: 99 }} />
+        ))}
+      </div>
+      <div className="skel anim-shimmer" style={{ height: 38, width: 110, borderRadius: 'var(--r-md)', flexShrink: 0 }} />
     </div>
   );
 }
@@ -114,13 +148,11 @@ const SubtitleCard = memo(function SubtitleCard({
   sub, title, index,
 }: { sub: Subtitle; title: string; index: number }) {
   const [format, setFormat] = useState<DownloadFormat>('srt');
-  const [downloading, setDownloading] = useState(false);
-  const [done, setDone] = useState(false);
+  const [state, setState] = useState<'idle' | 'loading' | 'done'>('idle');
 
   const handleDownload = useCallback(() => {
-    if (downloading) return;
-    setDownloading(true);
-    setDone(false);
+    if (state === 'loading') return;
+    setState('loading');
     const params = new URLSearchParams({ url: sub.url, format, title, lang: sub.languageCode });
     const a = document.createElement('a');
     a.href = `/api/download?${params}`;
@@ -128,44 +160,70 @@ const SubtitleCard = memo(function SubtitleCard({
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    setDone(true);
-    setTimeout(() => { setDownloading(false); setDone(false); }, 2500);
-  }, [sub.url, sub.languageCode, format, title, downloading]);
+    setTimeout(() => setState('done'), 400);
+    setTimeout(() => setState('idle'), 3000);
+  }, [sub.url, sub.languageCode, format, title, state]);
 
   const code = sub.languageCode.split('-')[0].toUpperCase().slice(0, 3);
 
   return (
     <article
-      className="card p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center gap-4 anim-slide-up"
-      style={{ animationDelay: `${Math.min(index * 55, 400)}ms`, opacity: 0 }}
+      className="card anim-slide-up"
+      style={{
+        animationDelay: `${Math.min(index * 50, 350)}ms`,
+        opacity: 0,
+        padding: '14px 16px',
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: '12px',
+      }}
       aria-label={`Subtitle: ${sub.language}`}
     >
-      <div className="lang-icon" title={sub.languageCode}>{code}</div>
-      <div className="flex-1 min-w-0">
-        <div className="flex flex-wrap items-center gap-2 mb-0.5">
-          <span className="font-bold text-white text-sm">{sub.language}</span>
+      {/* Language icon */}
+      <div className="lang-icon">{code}</div>
+
+      {/* Language info */}
+      <div style={{ flex: '1 1 120px', minWidth: 0 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px', marginBottom: 2 }}>
+          <span style={{ fontWeight: 700, color: 'var(--text)', fontSize: 'var(--text-sm)' }}>{sub.language}</span>
           {sub.isAutoGenerated && <span className="badge badge-auto">Auto</span>}
         </div>
-        <p className="text-xs" style={{ color: 'var(--text-subtle)', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+        <p style={{ fontSize: '0.65rem', color: 'var(--text-subtle)', letterSpacing: '0.05em', textTransform: 'uppercase', fontWeight: 600 }}>
           {sub.languageCode}
         </p>
       </div>
-      <div className="flex items-center gap-1.5 flex-wrap">
+
+      {/* Format pills */}
+      <div style={{ display: 'flex', gap: '5px', flexWrap: 'wrap' }}>
         {(Object.keys(FORMATS) as DownloadFormat[]).map(f => (
-          <button key={f} onClick={() => setFormat(f)} className={`pill ${format === f ? 'active' : ''}`}
-            title={FORMATS[f].title} aria-pressed={format === f}>{FORMATS[f].label}</button>
+          <button
+            key={f}
+            onClick={() => setFormat(f)}
+            className={`pill${format === f ? ' active' : ''}`}
+            title={FORMATS[f].desc}
+            aria-pressed={format === f}
+          >
+            {FORMATS[f].label}
+          </button>
         ))}
       </div>
-      <button onClick={handleDownload} disabled={downloading}
-        className="btn-primary px-5 py-2.5 text-sm shrink-0"
+
+      {/* Download button */}
+      <button
+        onClick={handleDownload}
+        disabled={state === 'loading'}
+        className="btn-primary"
+        style={{ padding: '9px 18px', flexShrink: 0 }}
         id={`dl-${sub.languageCode}-${index}`}
-        aria-label={`Download ${sub.language} as ${format.toUpperCase()}`}>
-        {done ? (
-          <><CheckCircle2 className="w-4 h-4" /> Saved!</>
-        ) : downloading ? (
-          <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full anim-spin" /> Saving…</>
+        aria-label={`Download ${sub.language} as ${format.toUpperCase()}`}
+      >
+        {state === 'done' ? (
+          <><CheckCircle2 style={{ width: 15, height: 15 }} /> Saved!</>
+        ) : state === 'loading' ? (
+          <><div className="anim-spin" style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.25)', borderTopColor: '#fff', borderRadius: '50%' }} /> Saving…</>
         ) : (
-          <><Download className="w-4 h-4" /> Download</>
+          <><Download style={{ width: 15, height: 15 }} /> Download</>
         )}
       </button>
     </article>
@@ -173,29 +231,58 @@ const SubtitleCard = memo(function SubtitleCard({
 });
 
 function RecentSearches({ searches, onSelect, onClear }: {
-  searches: RecentSearch[]; onSelect: (url: string) => void; onClear: () => void;
+  searches: RecentSearch[];
+  onSelect: (url: string) => void;
+  onClear: () => void;
 }) {
   if (!searches.length) return null;
   return (
-    <div className="glass rounded-2xl p-4 mt-4 anim-slide-up" style={{ opacity: 0, animationDelay: '100ms' }}>
-      <div className="flex items-center justify-between mb-2">
-        <span className="eyebrow flex items-center gap-1.5"><Clock className="w-3 h-3" />Recent</span>
-        <button onClick={onClear} className="flex items-center gap-1 text-xs font-medium hover:text-red-400 transition-colors"
-          style={{ color: 'var(--text-muted)' }} aria-label="Clear recent searches">
-          <Trash2 className="w-3 h-3" /> Clear
+    <div
+      className="card-glass anim-slide-up delay-2"
+      style={{ opacity: 0, padding: '14px 16px', marginTop: 10 }}
+    >
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+        <span className="eyebrow">
+          <Clock style={{ width: 11, height: 11 }} /> Recent
+        </span>
+        <button
+          onClick={onClear}
+          style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 'var(--text-xs)', fontWeight: 600, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', borderRadius: 6, transition: 'color 0.15s' }}
+          onMouseEnter={e => (e.currentTarget.style.color = 'var(--error)')}
+          onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
+          aria-label="Clear recent searches"
+        >
+          <Trash2 style={{ width: 11, height: 11 }} /> Clear
         </button>
       </div>
-      <ul className="space-y-0.5">
+      <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: 2 }}>
         {searches.map((s, i) => {
           const p = PLATFORMS[s.platform];
           return (
             <li key={i}>
-              <button onClick={() => onSelect(s.url)}
-                className="w-full text-left px-3 py-2 rounded-xl hover:bg-white/5 transition-colors flex items-center gap-3 group"
-                aria-label={`Re-search: ${s.title}`}>
-                <span className="text-sm" style={{ color: p?.color || 'var(--text-muted)' }}>{p?.icon || '▶'}</span>
-                <span className="flex-1 text-sm truncate" style={{ color: 'var(--text)' }}>{s.title}</span>
-                <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity shrink-0" style={{ color: 'var(--text-muted)' }} />
+              <button
+                onClick={() => onSelect(s.url)}
+                style={{
+                  width: '100%',
+                  textAlign: 'left',
+                  padding: '7px 10px',
+                  borderRadius: 10,
+                  background: 'transparent',
+                  border: 'none',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 10,
+                  transition: 'background 0.15s',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                aria-label={`Re-search: ${s.title}`}
+              >
+                <span style={{ color: p?.color || 'var(--text-muted)', fontSize: 11, flexShrink: 0 }}>●</span>
+                <span style={{ flex: 1, fontSize: 'var(--text-sm)', color: 'var(--text-2)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.title}</span>
+                <span style={{ fontSize: '0.65rem', color: 'var(--text-subtle)', flexShrink: 0 }}>{timeAgo(s.timestamp)}</span>
+                <ExternalLink style={{ width: 11, height: 11, color: 'var(--text-subtle)', flexShrink: 0 }} />
               </button>
             </li>
           );
@@ -207,31 +294,56 @@ function RecentSearches({ searches, onSelect, onClear }: {
 
 function StepCard({ n, title, desc, delay }: { n: string; title: string; desc: string; delay: number }) {
   return (
-    <div className="card p-7 relative overflow-hidden anim-slide-up" style={{ opacity: 0, animationDelay: `${delay}ms` }}>
-      <div aria-hidden="true" className="absolute top-0 right-4 text-[100px] font-black leading-none select-none"
-        style={{ color: 'rgba(255,255,255,0.03)', fontFamily: 'var(--font-head)' }}>{n}</div>
-      <div className="btn-primary w-11 h-11 text-lg font-black mb-5 shrink-0" style={{ borderRadius: 'var(--r-md)', padding: 0 }}
-        aria-hidden="true">{n}</div>
-      <h3 className="font-bold text-white text-base mb-2" style={{ fontFamily: 'var(--font-head)' }}>{title}</h3>
-      <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>{desc}</p>
-    </div>
-  );
-}
+    <div
+      className="card anim-slide-up"
+      style={{
+        opacity: 0,
+        animationDelay: `${delay}ms`,
+        padding: '32px 28px',
+        position: 'relative',
+        overflow: 'hidden',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 0,
+      }}
+    >
+      {/* Big background number */}
+      <div
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          top: -16,
+          right: 16,
+          fontSize: '7rem',
+          fontWeight: 900,
+          lineHeight: 1,
+          fontFamily: 'var(--font-head)',
+          color: 'rgba(255,255,255,0.025)',
+          userSelect: 'none',
+          pointerEvents: 'none',
+        }}
+      >{n}</div>
 
-function FAQItem({ q, a, index }: { q: string; a: string; index: number }) {
-  return (
-    <details className="card overflow-hidden anim-slide-up" style={{ opacity: 0, animationDelay: `${index * 70}ms` }}>
-      <summary className="flex items-center justify-between gap-4 p-5 sm:p-6 font-semibold text-white hover:text-[var(--accent)] transition-colors">
-        <span className="text-sm sm:text-base">{q}</span>
-        <ChevronDown className="chevron w-5 h-5 shrink-0" style={{ color: 'var(--text-muted)' }} />
-      </summary>
-      <div className="faq-body">
-        <div className="px-5 sm:px-6 pb-5">
-          <div className="divider mb-4" />
-          <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>{a}</p>
-        </div>
-      </div>
-    </details>
+      {/* Number badge */}
+      <div
+        className="btn-primary"
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 'var(--r-md)',
+          padding: 0,
+          fontSize: '1.1rem',
+          fontWeight: 900,
+          fontFamily: 'var(--font-head)',
+          flexShrink: 0,
+          marginBottom: 20,
+        }}
+        aria-hidden="true"
+      >{n}</div>
+
+      <h3 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, color: 'var(--text)', fontSize: 'var(--text-base)', marginBottom: 8 }}>{title}</h3>
+      <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', lineHeight: 1.7 }}>{desc}</p>
+    </div>
   );
 }
 
@@ -239,16 +351,57 @@ function FeatureCard({ icon, title, desc, delay }: {
   icon: React.ReactNode; title: string; desc: string; delay: number;
 }) {
   return (
-    <div className="card p-6 anim-slide-up" style={{ opacity: 0, animationDelay: `${delay}ms` }}>
-      <div className="btn-primary w-10 h-10 mb-4 shrink-0" style={{ borderRadius: 'var(--r-sm)', padding: 0 }}
-        aria-hidden="true">{icon}</div>
-      <h3 className="font-bold text-white text-sm mb-2" style={{ fontFamily: 'var(--font-head)' }}>{title}</h3>
-      <p className="text-sm leading-relaxed" style={{ color: 'var(--text-muted)' }}>{desc}</p>
+    <div
+      className="card anim-slide-up"
+      style={{ opacity: 0, animationDelay: `${delay}ms`, padding: '24px', display: 'flex', flexDirection: 'column', gap: 0 }}
+    >
+      <div
+        className="btn-primary"
+        style={{ width: 42, height: 42, borderRadius: 'var(--r-sm)', padding: 0, marginBottom: 16, flexShrink: 0 }}
+        aria-hidden="true"
+      >{icon}</div>
+      <h3 style={{ fontFamily: 'var(--font-head)', fontWeight: 700, color: 'var(--text)', fontSize: 'var(--text-sm)', marginBottom: 6 }}>{title}</h3>
+      <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', lineHeight: 1.7 }}>{desc}</p>
     </div>
   );
 }
 
-// ── Page ─────────────────────────────────────────────────────────────────────
+function FAQItem({ q, a, index }: { q: string; a: string; index: number }) {
+  return (
+    <details
+      className="card anim-slide-up"
+      style={{ opacity: 0, animationDelay: `${index * 60}ms`, overflow: 'hidden' }}
+    >
+      <summary
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 16,
+          padding: '18px 22px',
+          fontWeight: 600,
+          color: 'var(--text)',
+          fontSize: 'var(--text-sm)',
+          transition: 'color 0.15s',
+          cursor: 'pointer',
+        }}
+        onMouseEnter={e => ((e.currentTarget as HTMLElement).style.color = '#a899ff')}
+        onMouseLeave={e => ((e.currentTarget as HTMLElement).style.color = 'var(--text)')}
+      >
+        <span>{q}</span>
+        <ChevronDown className="chevron" style={{ width: 18, height: 18, color: 'var(--text-muted)', flexShrink: 0 }} />
+      </summary>
+      <div className="faq-body">
+        <div style={{ padding: '0 22px 20px' }}>
+          <div className="divider" style={{ marginBottom: 16 }} />
+          <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-sm)', lineHeight: 1.75 }}>{a}</p>
+        </div>
+      </div>
+    </details>
+  );
+}
+
+/* ── Page ───────────────────────────────────────────────────────── */
 export default function Home() {
   usePageMeta({
     title: 'SubFetch — Free Subtitle Downloader for YouTube, Vimeo & Dailymotion',
@@ -264,7 +417,7 @@ export default function Home() {
   const [recent, setRecent] = useState<RecentSearch[]>(loadRecent);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // ⌘K / Ctrl+K → focus input
+  /* ⌘K / Ctrl+K → focus input */
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
@@ -277,7 +430,10 @@ export default function Home() {
     return () => removeEventListener('keydown', handler);
   }, []);
 
-  const onUrlChange = (val: string) => { setUrl(val); setPlatform(detectPlatform(val)); };
+  const onUrlChange = (val: string) => {
+    setUrl(val);
+    setPlatform(detectPlatform(val));
+  };
 
   const doExtract = useCallback(async (targetUrl: string) => {
     if (!targetUrl.trim()) return;
@@ -297,207 +453,336 @@ export default function Home() {
   }, []);
 
   const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); doExtract(url); };
-
   const handleSelectRecent = (u: string) => { setUrl(u); setPlatform(detectPlatform(u)); doExtract(u); };
-
   const handleReset = () => {
     setData(null); setError(null); setUrl(''); setPlatform(null);
     setTimeout(() => inputRef.current?.focus(), 80);
   };
 
   const showSections = !data && !loading;
+  const detectedPlatform = platform ? PLATFORMS[platform] : null;
 
   return (
     <Layout>
       <main id="main-content">
 
-        {/* ── Hero ─────────────────────────────────────────────── */}
+        {/* ━━━ HERO ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
         <section
-          style={{ maxWidth: '72rem', margin: '0 auto', padding: '5rem 1.5rem 3.5rem' }}
+          style={{ maxWidth: 'var(--max-w-xl)', margin: '0 auto', padding: '4.5rem 1.5rem 3rem' }}
           aria-labelledby="hero-heading"
         >
-
-          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }} className="anim-slide-up delay-0">
-            <span className="badge badge-purple">
-              <Zap className="w-2.5 h-2.5 fill-current" /> Free · Instant · No sign-up
+          {/* Eyebrow badge */}
+          <div className="anim-slide-up delay-0" style={{ opacity: 0, display: 'flex', justifyContent: 'center', marginBottom: '1.5rem' }}>
+            <span className="badge badge-purple" style={{ padding: '5px 14px', fontSize: '0.7rem' }}>
+              <Zap style={{ width: 10, height: 10 }} />
+              Free · Instant · No account required
             </span>
           </div>
 
+          {/* H1 */}
           <h1
             id="hero-heading"
-            className="anim-slide-up delay-75"
+            className="anim-slide-up delay-1"
             style={{
-              fontFamily: 'var(--font-head)',
               opacity: 0,
-              fontSize: 'clamp(2.4rem, 7vw, 5rem)',
+              fontFamily: 'var(--font-head)',
+              fontSize: 'var(--text-hero)',
               fontWeight: 900,
-              color: 'white',
+              color: 'var(--text)',
               textAlign: 'center',
-              lineHeight: 1.06,
-              letterSpacing: '-0.03em',
-              marginBottom: '1.25rem',
+              lineHeight: 1.05,
+              letterSpacing: '-0.035em',
+              marginBottom: '1.1rem',
             }}
           >
-            Download{' '}<span className="grad-text">Subtitles</span>
-            <br />{' '}in Seconds
+            Download <span className="grad-text">Subtitles</span>
+            <br />in Seconds
           </h1>
 
+          {/* Subheadline */}
           <p
-            className="anim-slide-up delay-150"
+            className="anim-slide-up delay-2"
             style={{
-              color: 'var(--text-muted)',
               opacity: 0,
-              fontSize: 'clamp(0.95rem, 2vw, 1.1rem)',
+              fontSize: 'var(--text-lg)',
+              color: 'var(--text-muted)',
               textAlign: 'center',
-              maxWidth: '42rem',
-              margin: '0 auto 2.5rem',
+              maxWidth: '38rem',
+              margin: '0 auto 2.75rem',
               lineHeight: 1.7,
+              fontWeight: 400,
             }}
           >
             Extract captions from{' '}
-            <strong style={{ color: 'white', fontWeight: 600 }}>YouTube</strong>,{' '}
-            <strong style={{ color: 'white', fontWeight: 600 }}>Vimeo</strong>, and{' '}
-            <strong style={{ color: 'white', fontWeight: 600 }}>Dailymotion</strong>.{' '}
-            Download as SRT, VTT, or TXT — completely free.
+            <strong style={{ color: 'var(--text-2)', fontWeight: 600 }}>YouTube</strong>,{' '}
+            <strong style={{ color: 'var(--text-2)', fontWeight: 600 }}>Vimeo</strong> &{' '}
+            <strong style={{ color: 'var(--text-2)', fontWeight: 600 }}>Dailymotion</strong>{' '}
+            in SRT, VTT or TXT format.
           </p>
 
-          {/* Search form */}
+          {/* ── Search bar ── */}
           <div
-            className="anim-slide-up delay-225"
-            style={{ maxWidth: '48rem', margin: '0 auto', opacity: 0 }}
+            className="anim-slide-up delay-3"
+            style={{ opacity: 0, maxWidth: '52rem', margin: '0 auto' }}
           >
             <form onSubmit={handleSubmit} role="search" aria-label="Subtitle extraction">
               <div
-                className="input-wrap"
-                style={{ padding: '10px', display: 'flex', flexDirection: 'row', gap: '8px', boxShadow: '0 32px 80px rgba(0,0,0,0.5)', flexWrap: 'wrap' }}
+                className="search-wrap"
+                style={{ boxShadow: '0 24px 80px rgba(0,0,0,0.55), 0 0 0 1px rgba(108,99,255,0.08)' }}
               >
-                <div style={{ position: 'relative', flex: 1, minWidth: '200px', display: 'flex', alignItems: 'center' }}>
-                  <Search className="absolute left-4 w-5 h-5 pointer-events-none" style={{ color: 'var(--text-muted)' }} aria-hidden="true" />
-                  <input
-                    ref={inputRef}
-                    id="url-input"
-                    type="url"
-                    name="url"
-                    className="input-field pl-12 pr-4 py-3.5"
-                    placeholder="Paste YouTube, Vimeo, or Dailymotion URL…"
-                    value={url}
-                    onChange={e => onUrlChange(e.target.value)}
-                    required
-                    autoFocus
-                    autoComplete="off"
-                    spellCheck="false"
-                    aria-label="Video URL"
-                    aria-describedby="url-hint"
-                  />
-                  {platform && PLATFORMS[platform] && (
-                    <span className={`badge ${PLATFORMS[platform].badge} absolute right-3 anim-fade-in hide-sm`}
-                      style={{ opacity: 0 }} aria-live="polite">
-                      {PLATFORMS[platform].icon} {platform}
-                    </span>
-                  )}
+                {/* Search icon */}
+                <div className="search-icon-wrap" style={{ padding: '0 4px 0 4px' }}>
+                  <Search style={{ width: 20, height: 20 }} />
                 </div>
-                <button type="submit" disabled={loading || !url.trim()}
-                  id="extract-btn" className="btn-primary px-6 py-3.5 text-base min-w-[160px]"
-                  aria-label="Extract subtitles">
+
+                {/* Input */}
+                <input
+                  ref={inputRef}
+                  id="url-input"
+                  type="url"
+                  name="url"
+                  className="search-field"
+                  placeholder="Paste a YouTube, Vimeo or Dailymotion URL…"
+                  value={url}
+                  onChange={e => onUrlChange(e.target.value)}
+                  required
+                  autoFocus
+                  autoComplete="off"
+                  spellCheck="false"
+                  aria-label="Video URL"
+                  aria-describedby="url-hint"
+                />
+
+                {/* Platform indicator */}
+                {detectedPlatform && (
+                  <span
+                    className={`badge ${detectedPlatform.badge} anim-scale-in hide-sm`}
+                    style={{ opacity: 1, flexShrink: 0 }}
+                    aria-live="polite"
+                  >
+                    {detectedPlatform.label}
+                  </span>
+                )}
+
+                {/* Keyboard shortcut hint */}
+                {!url && (
+                  <kbd
+                    className="hide-sm"
+                    style={{
+                      flexShrink: 0,
+                      padding: '3px 7px',
+                      borderRadius: 6,
+                      border: '1px solid var(--border)',
+                      background: 'rgba(255,255,255,0.04)',
+                      color: 'var(--text-subtle)',
+                      fontSize: '0.65rem',
+                      fontFamily: 'var(--font-mono)',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    ⌘K
+                  </kbd>
+                )}
+
+                {/* Submit button */}
+                <button
+                  type="submit"
+                  disabled={loading || !url.trim()}
+                  id="extract-btn"
+                  className="btn-primary"
+                  style={{ padding: '10px 22px', flexShrink: 0, fontSize: 'var(--text-sm)' }}
+                  aria-label="Extract subtitles"
+                >
                   {loading ? (
-                    <><div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full anim-spin" /> Extracting…</>
+                    <>
+                      <div className="anim-spin" style={{ width: 16, height: 16, border: '2px solid rgba(255,255,255,0.25)', borderTopColor: '#fff', borderRadius: '50%' }} />
+                      Extracting…
+                    </>
                   ) : (
-                    <><Captions className="w-5 h-5" /> Extract</>
+                    <>
+                      <Captions style={{ width: 17, height: 17 }} />
+                      Extract
+                    </>
                   )}
                 </button>
               </div>
             </form>
 
-            <div id="url-hint" className="flex flex-wrap justify-center gap-x-5 gap-y-1.5 mt-4 text-xs font-semibold"
-              style={{ color: 'var(--text-muted)' }}>
+            {/* Platform hint row */}
+            <div
+              id="url-hint"
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                alignItems: 'center',
+                gap: '6px 20px',
+                marginTop: '1rem',
+              }}
+            >
               {Object.entries(PLATFORMS).map(([name, cfg]) => (
-                <span key={name} className="flex items-center gap-1.5">
-                  <span style={{ color: cfg.color }}>{cfg.icon}</span> {name}
+                <span key={name} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 'var(--text-xs)', color: 'var(--text-muted)', fontWeight: 500 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dot, display: 'inline-block', flexShrink: 0 }} />
+                  {name}
                 </span>
               ))}
-              <kbd className="px-1.5 py-0.5 rounded border text-[10px] font-mono hide-sm"
-                style={{ borderColor: 'var(--border)', background: 'rgba(255,255,255,0.04)', color: 'var(--text-subtle)' }}>
-                ⌘K
-              </kbd>
+              <span style={{ fontSize: 'var(--text-xs)', color: 'var(--text-subtle)', fontWeight: 500 }} className="hide-sm">
+                · Supports SRT · VTT · TXT
+              </span>
             </div>
 
+            {/* Recent searches */}
             {!data && !loading && !error && (
-              <RecentSearches searches={recent} onSelect={handleSelectRecent} onClear={() => {
-                localStorage.removeItem('subfetch_v2_recent'); setRecent([]);
-              }} />
+              <RecentSearches
+                searches={recent}
+                onSelect={handleSelectRecent}
+                onClear={() => { localStorage.removeItem('subfetch_v2_recent'); setRecent([]); }}
+              />
             )}
           </div>
 
-          {/* Loading */}
-          {loading && (
-            <div className="max-w-3xl mx-auto mt-8 space-y-3 anim-fade-in" aria-busy="true" aria-label="Loading subtitles">
-              <div className="card p-5 flex gap-4 items-center">
-                <div className="skel anim-shimmer w-28 h-16 rounded-xl" />
-                <div className="flex-1 space-y-2">
-                  <div className="skel anim-shimmer h-3 w-20 rounded" />
-                  <div className="skel anim-shimmer h-5 w-48 rounded" />
-                  <div className="skel anim-shimmer h-3 w-28 rounded" />
+          {/* ── Stats strip ── */}
+          {showSections && (
+            <div
+              className="stats-strip anim-slide-up delay-4"
+              style={{
+                opacity: 0,
+                maxWidth: '52rem',
+                margin: '3rem auto 0',
+                background: 'var(--surface)',
+                border: '1px solid var(--border)',
+                borderRadius: 'var(--r-xl)',
+                overflow: 'hidden',
+              }}
+            >
+              {STATS.map((s, i) => (
+                <div key={i} style={{
+                  borderRight: i < 3 ? '1px solid var(--border)' : 'none',
+                  borderBottom: '1px solid var(--border)',
+                }}>
+                  <StatBadge value={s.value} label={s.label} />
                 </div>
-              </div>
-              {[0,1,2].map(i => <SkeletonCard key={i} />)}
+              ))}
             </div>
           )}
 
-          {/* Error */}
+
+          {/* ── Loading skeleton ── */}
+          {loading && (
+            <div
+              style={{ maxWidth: '52rem', margin: '2rem auto 0', display: 'flex', flexDirection: 'column', gap: 10 }}
+              aria-busy="true"
+              aria-label="Loading subtitles"
+            >
+              {/* Video card skeleton */}
+              <div className="card" style={{ padding: '20px', display: 'flex', gap: 16, alignItems: 'center' }}>
+                <div className="skel anim-shimmer" style={{ width: 112, height: 63, borderRadius: 'var(--r-md)', flexShrink: 0 }} />
+                <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div className="skel anim-shimmer" style={{ height: 11, width: '20%', borderRadius: 4 }} />
+                  <div className="skel anim-shimmer" style={{ height: 18, width: '65%', borderRadius: 6 }} />
+                  <div className="skel anim-shimmer" style={{ height: 11, width: '30%', borderRadius: 4 }} />
+                </div>
+              </div>
+              {[0, 1, 2, 3].map(i => <SkeletonCard key={i} />)}
+            </div>
+          )}
+
+          {/* ── Error state ── */}
           {error && !loading && (
-            <div role="alert" className="max-w-3xl mx-auto mt-8 card p-5 flex items-start gap-4 anim-slide-up"
-              style={{ opacity: 0, borderColor: 'rgba(248,113,113,0.2)' }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                style={{ background: 'rgba(248,113,113,0.1)' }}>
-                <AlertCircle className="w-5 h-5" style={{ color: 'var(--error)' }} />
+            <div
+              role="alert"
+              className="anim-scale-in"
+              style={{
+                opacity: 0,
+                maxWidth: '52rem',
+                margin: '2rem auto 0',
+                padding: '20px 22px',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: 16,
+                background: 'var(--error-bg)',
+                border: '1px solid rgba(248,113,113,0.2)',
+                borderRadius: 'var(--r-xl)',
+              }}
+            >
+              <div style={{ width: 40, height: 40, borderRadius: 'var(--r-sm)', background: 'rgba(248,113,113,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <AlertCircle style={{ width: 20, height: 20, color: 'var(--error)' }} />
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-sm mb-0.5" style={{ color: '#fca5a5' }}>Extraction failed</p>
-                <p className="text-sm" style={{ color: 'rgba(252,165,165,0.7)' }}>{error}</p>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontWeight: 700, fontSize: 'var(--text-sm)', color: '#fca5a5', marginBottom: 3 }}>Extraction failed</p>
+                <p style={{ fontSize: 'var(--text-sm)', color: 'rgba(252,165,165,0.7)', lineHeight: 1.5 }}>{error}</p>
               </div>
-              <button onClick={handleReset} className="pill shrink-0" aria-label="Try again">
-                <RefreshCw className="w-3 h-3 inline mr-1" /> Retry
+              <button onClick={handleReset} className="pill" style={{ flexShrink: 0 }} aria-label="Try again">
+                <RefreshCw style={{ width: 11, height: 11 }} /> Retry
               </button>
             </div>
           )}
 
-          {/* Results */}
+          {/* ── Results ── */}
           {data && !loading && (
-            <div className="max-w-3xl mx-auto mt-8 space-y-4" aria-live="polite">
-              <div className="card p-5 flex flex-col sm:flex-row gap-4 items-start sm:items-center anim-slide-up" style={{ opacity: 0 }}>
+            <div
+              style={{ maxWidth: '52rem', margin: '2rem auto 0', display: 'flex', flexDirection: 'column', gap: 10 }}
+              aria-live="polite"
+            >
+              {/* Video info card */}
+              <div
+                className="card anim-scale-in"
+                style={{
+                  opacity: 0,
+                  padding: '18px 20px',
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  gap: 16,
+                  alignItems: 'center',
+                  borderColor: 'rgba(108,99,255,0.2)',
+                }}
+              >
                 {data.thumbnail && (
-                  <div className="thumb-wrap w-28 h-16 shrink-0">
-                    <img src={data.thumbnail} alt={`Thumbnail for ${data.title}`}
-                      className="w-full h-full object-cover" loading="lazy" decoding="async"
-                      onError={e => (e.currentTarget.parentElement!.style.display = 'none')} />
-                    <div className="thumb-overlay" aria-hidden="true">
-                      <Play className="w-5 h-5 text-white fill-white" />
+                  <div className="thumb-wrap" style={{ width: 112, height: 63 }}>
+                    <img
+                      src={data.thumbnail}
+                      alt={`Thumbnail for ${data.title}`}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      loading="lazy"
+                      decoding="async"
+                      onError={e => { (e.currentTarget.parentElement as HTMLElement).style.display = 'none'; }}
+                    />
+                    <div className="thumb-overlay">
+                      <Play style={{ width: 22, height: 22, color: 'white', fill: 'white' }} />
                     </div>
                   </div>
                 )}
-                <div className="flex-1 min-w-0">
+                <div style={{ flex: '1 1 200px', minWidth: 0 }}>
                   {(() => {
                     const p = PLATFORMS[data.platform];
                     return (
-                      <span className={`badge ${p?.badge ?? 'badge-purple'} mb-1.5 inline-flex text-[10px]`}>
-                        {p?.icon} {data.platform}
+                      <span className={`badge ${p?.badge ?? 'badge-purple'}`} style={{ marginBottom: 6, display: 'inline-flex' }}>
+                        {data.platform}
                       </span>
                     );
                   })()}
-                  <h2 className="font-bold text-white text-base leading-snug line-clamp-2 mb-1">{data.title}</h2>
-                  <p className="text-xs flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
-                    <CheckCircle2 className="w-3 h-3" style={{ color: 'var(--success)' }} />
+                  <h2 className="line-clamp-2" style={{ fontWeight: 700, color: 'var(--text)', fontSize: 'var(--text-base)', lineHeight: 1.4, marginBottom: 5 }}>
+                    {data.title}
+                  </h2>
+                  <p style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 'var(--text-xs)', color: 'var(--text-muted)' }}>
+                    <CheckCircle2 style={{ width: 13, height: 13, color: 'var(--success)', flexShrink: 0 }} />
                     {data.subtitles.length} subtitle track{data.subtitles.length !== 1 ? 's' : ''} found
                   </p>
                 </div>
-                <button onClick={handleReset} className="pill shrink-0" aria-label="New search">New Search</button>
+                <button onClick={handleReset} className="pill" style={{ flexShrink: 0 }}>New search</button>
               </div>
-              <div className="flex flex-wrap gap-x-5 gap-y-1.5 px-1 text-xs" style={{ color: 'var(--text-muted)' }}>
-                {(Object.entries(FORMATS) as [DownloadFormat, (typeof FORMATS)[DownloadFormat]][]).map(([f, info]) => (
-                  <span key={f}><strong className="text-white">{info.label}</strong> — {info.title}</span>
+
+              {/* Format legend */}
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 18px', padding: '2px 4px' }}>
+                {(Object.entries(FORMATS) as [DownloadFormat, typeof FORMATS[DownloadFormat]][]).map(([f, info]) => (
+                  <span key={f} style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                    <strong style={{ color: 'var(--text-2)' }}>{info.label}</strong> — {info.desc}
+                  </span>
                 ))}
               </div>
-              <div className="space-y-3">
+
+              {/* Subtitle tracks */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {data.subtitles.map((sub, i) => (
                   <SubtitleCard key={`${sub.languageCode}-${i}`} sub={sub} title={data.title} index={i} />
                 ))}
@@ -506,69 +791,223 @@ export default function Home() {
           )}
         </section>
 
-        {/* ── Sections (home only) ─────────────────────────────── */}
+        {/* ━━━ HOME-ONLY SECTIONS ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
         {showSections && (
           <>
-            {/* How it Works */}
-            <section id="how-it-works" aria-labelledby="hiw-heading" style={{ maxWidth: '80rem', margin: '0 auto', padding: '5rem 1.5rem' }}>
-              <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-                <p className="eyebrow" style={{ marginBottom: '0.75rem' }}>Simple Process</p>
-                <h2 id="hiw-heading" style={{ fontFamily: 'var(--font-head)', fontSize: 'clamp(1.75rem, 4vw, 2.25rem)', fontWeight: 900, color: 'white', letterSpacing: '-0.02em' }}>How to Download Subtitles</h2>
-                <p style={{ marginTop: '0.75rem', maxWidth: '28rem', margin: '0.75rem auto 0', fontSize: '0.875rem', color: 'var(--text-muted)' }}>Three steps. No installation, no account.</p>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
-                <StepCard n="1" title="Copy the URL" desc="Find your video on YouTube, Vimeo, or Dailymotion and copy the link from your browser." delay={0} />
-                <StepCard n="2" title="Paste & Extract" desc="Paste the URL into the search box and click Extract. We detect the platform and fetch all available tracks." delay={100} />
-                <StepCard n="3" title="Pick Format & Download" desc="Choose your language and format — SRT for editors, VTT for web players, TXT for AI tools — and download instantly." delay={200} />
-              </div>
-            </section>
-
-            {/* Features */}
-            <section id="features" aria-labelledby="features-heading" style={{ maxWidth: '80rem', margin: '0 auto', padding: '5rem 1.5rem' }}>
-              <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
-                <p className="eyebrow" style={{ marginBottom: '0.75rem' }}>Why SubFetch</p>
-                <h2 id="features-heading" style={{ fontFamily: 'var(--font-head)', fontSize: 'clamp(1.75rem, 4vw, 2.25rem)', fontWeight: 900, color: 'white', letterSpacing: '-0.02em' }}>Built for Speed &amp; Simplicity</h2>
+            {/* ── How it Works ── */}
+            <section
+              id="how-it-works"
+              aria-labelledby="hiw-heading"
+              style={{ maxWidth: 'var(--max-w-xl)', margin: '0 auto', padding: '4rem 1.5rem' }}
+            >
+              <div style={{ textAlign: 'center', marginBottom: '2.75rem' }}>
+                <p className="eyebrow anim-slide-up delay-0" style={{ opacity: 0, justifyContent: 'center', marginBottom: '0.75rem' }}>
+                  Simple Process
+                </p>
+                <h2
+                  id="hiw-heading"
+                  className="anim-slide-up delay-1"
+                  style={{
+                    opacity: 0,
+                    fontFamily: 'var(--font-head)',
+                    fontSize: 'var(--text-4xl)',
+                    fontWeight: 900,
+                    color: 'var(--text)',
+                    letterSpacing: '-0.025em',
+                  }}
+                >
+                  Three Steps to Done
+                </h2>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
-                {[
-                  { icon: <Zap className="w-5 h-5" />, title: 'Lightning Fast', desc: "Runs on Cloudflare's global edge network — subtitle extraction in under a second from anywhere.", delay: 0 },
-                  { icon: <Shield className="w-5 h-5" />, title: 'Privacy First', desc: 'Stateless. We never store your URLs or subtitle data. Every request is independent.', delay: 80 },
-                  { icon: <Globe2 className="w-5 h-5" />, title: 'Multi-language', desc: 'All subtitle tracks are listed — manual captions, auto-generated ASR, and community translations.', delay: 160 },
-                  { icon: <FileText className="w-5 h-5" />, title: 'Three Formats', desc: 'Server-side conversion to SRT, VTT, or TXT with correct timestamps and encoding (UTF-8).', delay: 240 },
-                  { icon: <CheckCircle2 className="w-5 h-5" />, title: 'No Registration', desc: 'Completely free. No email, no limits, no watermarks. Paste and go.', delay: 320 },
-                  { icon: <Sparkles className="w-5 h-5" />, title: 'Auto-generated Captions', desc: "YouTube's speech-recognition captions are clearly labeled and fully supported.", delay: 400 },
-                ].map((f, i) => <FeatureCard key={i} icon={f.icon} title={f.title} desc={f.desc} delay={f.delay} />)}
+                <StepCard n="1" title="Copy the video URL" desc="Find your video on YouTube, Vimeo, or Dailymotion and copy the link from your browser's address bar." delay={0} />
+                <StepCard n="2" title="Paste &amp; Extract" desc="Paste the URL into the search box. SubFetch detects the platform automatically and fetches all available caption tracks." delay={90} />
+                <StepCard n="3" title="Choose &amp; Download" desc="Pick your language and format — SRT for video editors, VTT for web players, TXT for AI tools — and download instantly." delay={180} />
               </div>
             </section>
 
-            {/* FAQ */}
-            <section id="faq" aria-labelledby="faq-heading" style={{ maxWidth: '48rem', margin: '0 auto', padding: '5rem 1.5rem' }}>
-              <div className="text-center mb-12">
-                <p className="eyebrow mb-3">Got Questions?</p>
-                <h2 id="faq-heading" className="text-3xl sm:text-4xl font-black text-white tracking-tight"
-                  style={{ fontFamily: 'var(--font-head)' }}>Frequently Asked Questions</h2>
+            {/* ── Features ── */}
+            <section
+              id="features"
+              aria-labelledby="features-heading"
+              style={{ maxWidth: 'var(--max-w-xl)', margin: '0 auto', padding: '2rem 1.5rem 4rem' }}
+            >
+              <div style={{ textAlign: 'center', marginBottom: '2.75rem' }}>
+                <p className="eyebrow anim-slide-up delay-0" style={{ opacity: 0, justifyContent: 'center', marginBottom: '0.75rem' }}>
+                  Why SubFetch
+                </p>
+                <h2
+                  id="features-heading"
+                  className="anim-slide-up delay-1"
+                  style={{
+                    opacity: 0,
+                    fontFamily: 'var(--font-head)',
+                    fontSize: 'var(--text-4xl)',
+                    fontWeight: 900,
+                    color: 'var(--text)',
+                    letterSpacing: '-0.025em',
+                  }}
+                >
+                  Built for Speed &amp; Privacy
+                </h2>
               </div>
-              <div className="space-y-3" role="list">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+                {[
+                  { icon: <Zap style={{ width: 18, height: 18 }} />, title: 'Edge-fast extractions', desc: "Runs on Cloudflare's 300+ PoP global edge network. Subtitle extraction completes in under a second anywhere in the world.", delay: 0 },
+                  { icon: <Shield style={{ width: 18, height: 18 }} />, title: 'Stateless & private', desc: "Your URLs are never stored. Each request is completely independent — no logs, no cookies, no tracking.", delay: 70 },
+                  { icon: <Globe2 style={{ width: 18, height: 18 }} />, title: '100+ languages', desc: 'All subtitle tracks are listed — manual captions, auto-generated ASR, and community translations.', delay: 140 },
+                  { icon: <FileText style={{ width: 18, height: 18 }} />, title: 'Three formats', desc: 'Server-side conversion to SRT, VTT, or TXT with correct timestamps and UTF-8 encoding.', delay: 210 },
+                  { icon: <CheckCircle2 style={{ width: 18, height: 18 }} />, title: 'Zero registration', desc: 'No email. No subscription. No watermarks. No limits. Just paste a URL and go.', delay: 280 },
+                  { icon: <Sparkles style={{ width: 18, height: 18 }} />, title: 'Auto-generated captions', desc: "YouTube's ASR captions are clearly labelled and fully supported alongside manually-added tracks.", delay: 350 },
+                ].map((f, i) => (
+                  <FeatureCard key={i} icon={f.icon} title={f.title} desc={f.desc} delay={f.delay} />
+                ))}
+              </div>
+            </section>
+
+            {/* ── Platform showcase ── */}
+            <section
+              style={{ maxWidth: 'var(--max-w-lg)', margin: '0 auto', padding: '0 1.5rem 4rem' }}
+              aria-label="Supported platforms"
+            >
+              <div
+                className="card-highlight anim-slide-up"
+                style={{ opacity: 0, padding: '28px 32px' }}
+              >
+                <p className="eyebrow" style={{ justifyContent: 'center', marginBottom: '1.25rem' }}>Supported platforms</p>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '1rem' }}>
+                  {[
+                    { name: 'YouTube', color: '#ff4444', formats: 'SRT · VTT · TXT', note: 'Auto-captions ✓' },
+                    { name: 'Vimeo',   color: '#19b7ea', formats: 'SRT · VTT · TXT', note: 'All tracks ✓'   },
+                    { name: 'Dailymotion', color: '#f5a623', formats: 'SRT · VTT · TXT', note: 'All regions ✓' },
+                  ].map(p => (
+                    <div
+                      key={p.name}
+                      style={{
+                        padding: '18px 20px',
+                        borderRadius: 'var(--r-lg)',
+                        background: 'rgba(255,255,255,0.03)',
+                        border: '1px solid rgba(255,255,255,0.06)',
+                        textAlign: 'center',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: 6,
+                        transition: 'border-color 0.2s, background 0.2s',
+                      }}
+                      onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.1)'; }}
+                      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.03)'; (e.currentTarget as HTMLElement).style.borderColor = 'rgba(255,255,255,0.06)'; }}
+                    >
+                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: p.color, margin: '0 auto 4px', boxShadow: `0 0 10px ${p.color}66` }} />
+                      <p style={{ fontWeight: 700, color: 'var(--text)', fontSize: 'var(--text-sm)', fontFamily: 'var(--font-head)' }}>{p.name}</p>
+                      <p style={{ fontSize: 'var(--text-xs)', color: 'var(--text-muted)', letterSpacing: '0.04em' }}>{p.formats}</p>
+                      <p style={{ fontSize: '0.65rem', color: p.color, fontWeight: 700 }}>{p.note}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            {/* ── FAQ ── */}
+            <section
+              id="faq"
+              aria-labelledby="faq-heading"
+              style={{ maxWidth: 'var(--max-w-md)', margin: '0 auto', padding: '0 1.5rem 4rem' }}
+            >
+              <div style={{ textAlign: 'center', marginBottom: '2.5rem' }}>
+                <p className="eyebrow anim-slide-up delay-0" style={{ opacity: 0, justifyContent: 'center', marginBottom: '0.75rem' }}>
+                  Got Questions?
+                </p>
+                <h2
+                  id="faq-heading"
+                  className="anim-slide-up delay-1"
+                  style={{
+                    opacity: 0,
+                    fontFamily: 'var(--font-head)',
+                    fontSize: 'var(--text-4xl)',
+                    fontWeight: 900,
+                    color: 'var(--text)',
+                    letterSpacing: '-0.025em',
+                  }}
+                >
+                  Frequently Asked Questions
+                </h2>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                 {FAQS.map((item, i) => <FAQItem key={i} q={item.q} a={item.a} index={i} />)}
               </div>
             </section>
 
-            {/* CTA */}
-            <section style={{ maxWidth: '72rem', margin: '0 auto', padding: '0 1.5rem 6rem' }} aria-labelledby="cta-heading">
-              <div className="card p-10 sm:p-14 text-center relative overflow-hidden">
-                <div aria-hidden="true" className="absolute inset-0 pointer-events-none"
-                  style={{ background: 'linear-gradient(135deg, rgba(108,99,255,0.07) 0%, rgba(168,85,247,0.04) 100%)' }} />
-                <div className="relative z-10">
-                  <h2 id="cta-heading" className="text-2xl sm:text-3xl font-black text-white mb-3"
-                    style={{ fontFamily: 'var(--font-head)' }}>Ready to Download Subtitles?</h2>
-                  <p className="text-sm mb-7 max-w-sm mx-auto" style={{ color: 'var(--text-muted)' }}>
-                    No sign-up. No installation. Paste a URL and download in seconds.
+            {/* ── CTA Banner ── */}
+            <section
+              style={{ maxWidth: 'var(--max-w-lg)', margin: '0 auto', padding: '0 1.5rem 5rem' }}
+              aria-labelledby="cta-heading"
+            >
+              <div
+                className="anim-slide-up"
+                style={{
+                  opacity: 0,
+                  position: 'relative',
+                  overflow: 'hidden',
+                  borderRadius: 'var(--r-2xl)',
+                  background: 'var(--surface)',
+                  border: '1px solid rgba(108,99,255,0.2)',
+                  padding: 'clamp(2rem, 5vw, 4rem)',
+                  textAlign: 'center',
+                  boxShadow: '0 0 80px rgba(108,99,255,0.08) inset, var(--shadow-lg)',
+                }}
+              >
+                {/* Background gradient glow */}
+                <div
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute',
+                    inset: 0,
+                    background: 'radial-gradient(ellipse 60% 50% at 50% 100%, rgba(108,99,255,0.12) 0%, transparent 70%)',
+                    pointerEvents: 'none',
+                  }}
+                />
+
+                <div style={{ position: 'relative', zIndex: 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+                    <div
+                      className="btn-primary"
+                      style={{ width: 52, height: 52, borderRadius: 'var(--r-lg)', padding: 0 }}
+                      aria-hidden="true"
+                    >
+                      <ClosedCaption style={{ width: 24, height: 24 }} />
+                    </div>
+                  </div>
+                  <h2
+                    id="cta-heading"
+                    style={{
+                      fontFamily: 'var(--font-head)',
+                      fontSize: 'var(--text-3xl)',
+                      fontWeight: 900,
+                      color: 'var(--text)',
+                      letterSpacing: '-0.025em',
+                      marginBottom: 10,
+                    }}
+                  >
+                    Ready to download?
+                  </h2>
+                  <p style={{ color: 'var(--text-muted)', fontSize: 'var(--text-base)', maxWidth: '24rem', margin: '0 auto 1.75rem', lineHeight: 1.65 }}>
+                    No sign-up. No installation. Paste a URL and get your subtitles in under a second.
                   </p>
-                  <button
-                    onClick={() => { scrollTo({ top: 0, behavior: 'smooth' }); setTimeout(() => inputRef.current?.focus(), 700); }}
-                    className="btn-primary px-8 py-3.5 text-base" aria-label="Get started">
-                    <Download className="w-5 h-5" /> Get Started — It's Free
-                  </button>
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <button
+                      onClick={() => { scrollTo({ top: 0, behavior: 'smooth' }); setTimeout(() => inputRef.current?.focus(), 700); }}
+                      className="btn-primary"
+                      style={{ padding: '12px 28px', fontSize: 'var(--text-base)' }}
+                      aria-label="Get started"
+                    >
+                      <Download style={{ width: 18, height: 18 }} />
+                      Get Started — Free
+                    </button>
+                    <a href="/api-docs" className="btn-secondary" style={{ padding: '12px 22px', fontSize: 'var(--text-base)' }}>
+                      <ArrowRight style={{ width: 16, height: 16 }} />
+                      View API docs
+                    </a>
+                  </div>
                 </div>
               </div>
             </section>
