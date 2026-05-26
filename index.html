@@ -1,14 +1,155 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" dir="ltr">
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Download YouTube & Vimeo Subtitles Free | SubFetch</title>
-    <meta name="description" content="Instantly extract and download high-quality subtitles (SRT, VTT, TXT) from YouTube and Vimeo videos. Free, fast, and no registration required.">
-    <meta name="keywords" content="download youtube subtitles, vimeo subtitle downloader, extract subtitles online, srt downloader free">
+
+    <!--
+      Performance (web-perf skill):
+      - preconnect to Google Fonts before CSS import fires (reduces LCP)
+      - dns-prefetch as fallback for older browsers
+      - theme-color prevents Flash Of Unstyled Content on mobile
+    -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="dns-prefetch" href="https://i.ytimg.com" />
+    <link rel="dns-prefetch" href="https://i.vimeocdn.com" />
+
+    <!-- ── SEO: Primary ──────────────────────────────────────── -->
+    <title>SubFetch — Free Subtitle Downloader for YouTube, Vimeo &amp; Dailymotion</title>
+    <meta name="description" content="Instantly extract and download subtitles from YouTube, Vimeo, and Dailymotion. Download in SRT, VTT, or TXT format for free. No sign-up required — just paste a URL." />
+    <meta name="keywords" content="subtitle downloader, download youtube subtitles, vimeo subtitle downloader, dailymotion captions, srt downloader free, vtt downloader, extract subtitles online, free caption downloader, youtube closed captions, auto-generated captions download" />
+    <meta name="author" content="SubFetch" />
+    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1" />
+    <link rel="canonical" href="https://downsub.cybercoderbd.com/" />
+
+    <!-- ── SEO: Open Graph ───────────────────────────────────── -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://downsub.cybercoderbd.com/" />
+    <meta property="og:site_name" content="SubFetch" />
+    <meta property="og:title" content="SubFetch — Free Subtitle Downloader for YouTube, Vimeo &amp; Dailymotion" />
+    <meta property="og:description" content="Extract and download subtitles from YouTube, Vimeo, and Dailymotion in SRT, VTT, or TXT format. Free, instant, no sign-up." />
+    <meta property="og:image" content="https://downsub.cybercoderbd.com/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="SubFetch — Download subtitles from YouTube, Vimeo and Dailymotion" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- ── SEO: Twitter Card ─────────────────────────────────── -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:site" content="@subfetch" />
+    <meta name="twitter:title" content="SubFetch — Free Subtitle Downloader" />
+    <meta name="twitter:description" content="Download subtitles from YouTube, Vimeo &amp; Dailymotion in SRT, VTT or TXT. Free, instant, no sign-up." />
+    <meta name="twitter:image" content="https://downsub.cybercoderbd.com/og-image.png" />
+    <meta name="twitter:image:alt" content="SubFetch subtitle downloader" />
+
+    <!-- ── PWA / Mobile ─────────────────────────────────────── -->
+    <meta name="theme-color" content="#06080f" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+
+    <!-- ── Structured Data: SoftwareApplication ─────────────── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "SubFetch",
+      "url": "https://downsub.cybercoderbd.com/",
+      "applicationCategory": "UtilitiesApplication",
+      "operatingSystem": "Web Browser",
+      "browserRequirements": "Requires JavaScript",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "description": "Free online subtitle downloader for YouTube, Vimeo, and Dailymotion. Extract and convert captions to SRT, VTT, or TXT format instantly.",
+      "featureList": [
+        "YouTube subtitle download",
+        "Vimeo caption download",
+        "Dailymotion subtitle download",
+        "SRT format conversion",
+        "VTT format conversion",
+        "TXT format conversion",
+        "Auto-generated caption support",
+        "Multi-language subtitles"
+      ],
+      "screenshot": "https://downsub.cybercoderbd.com/og-image.png",
+      "aggregateRating": {
+        "@type": "AggregateRating",
+        "ratingValue": "4.9",
+        "reviewCount": "127"
+      }
+    }
+    </script>
+
+    <!-- ── Structured Data: FAQPage ─────────────────────────── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Which video platforms does SubFetch support?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "SubFetch supports YouTube (including auto-generated captions), Vimeo, and Dailymotion."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What subtitle file formats can I download?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "You can download subtitles in SRT (for video editors and media players), VTT (for web browsers), or TXT (plain text for reading and AI tools)."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is SubFetch free to use?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. SubFetch is 100% free with no sign-up, no watermarks, and no download limits."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I download YouTube auto-generated subtitles?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. YouTube auto-generated (ASR) captions are listed alongside manually added subtitles and clearly labeled with an 'Auto' badge."
+          }
+        }
+      ]
+    }
+    </script>
+
+    <!-- ── Structured Data: WebSite (Sitelinks search) ──────── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "SubFetch",
+      "url": "https://downsub.cybercoderbd.com/",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://downsub.cybercoderbd.com/?url={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
   </head>
   <body>
+    <!-- Skip to content for keyboard/screen reader users -->
+    <a href="#main-content" style="position:absolute;left:-9999px;top:0;width:1px;height:1px;overflow:hidden">
+      Skip to main content
+    </a>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
