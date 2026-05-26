@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700;800&display=swap');
 @import "tailwindcss";
 
 /*
@@ -6,9 +7,9 @@
  * - will-change only on actively animating elements (avoids excess GPU layers)
  * - preconnect handled in index.html for faster font loading
  * - CSS custom properties used for consistency (reduces specificity wars)
+ * - @plugin "@tailwindcss/typography" REMOVED — it is Tailwind v3 only and
+ *   would crash the entire Tailwind v4 CSS pipeline.
  */
-
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700;800&display=swap');
 
 /* ── Design Tokens ────────────────────────────────────────────── */
 :root {
@@ -113,7 +114,6 @@ body {
 }
 
 /* ── Utility Animations ────────────────────────────────────────── */
-/* will-change only on elements that are actually animating */
 .anim-float-a  { animation: float-a 10s ease-in-out infinite; will-change: transform; }
 .anim-float-b  { animation: float-b 13s ease-in-out infinite; will-change: transform; }
 .anim-float-c  { animation: float-c 16s ease-in-out infinite; will-change: transform; }
@@ -153,7 +153,7 @@ body {
 }
 
 .glass-nav {
-  background: rgba(6, 8, 15, 0.8);
+  background: rgba(6, 8, 15, 0.85);
   backdrop-filter: blur(24px) saturate(1.5);
   -webkit-backdrop-filter: blur(24px) saturate(1.5);
   border-bottom: 1px solid var(--border);
@@ -203,6 +203,8 @@ body {
   transition: transform 0.15s ease, box-shadow 0.25s ease, opacity 0.2s;
   position: relative;
   overflow: hidden;
+  text-decoration: none;
+  white-space: nowrap;
 }
 
 .btn-primary::before {
@@ -255,6 +257,8 @@ body {
   font-size: 1rem;
   font-weight: 500;
   flex: 1;
+  min-width: 0;
+  width: 100%;
 }
 
 .input-field::placeholder { color: var(--text-muted); }
@@ -271,6 +275,7 @@ body {
   letter-spacing: 0.06em;
   text-transform: uppercase;
   border: 1px solid transparent;
+  white-space: nowrap;
 }
 
 .badge-purple   { background: rgba(108,99,255,0.15); color: #a899ff; border-color: rgba(108,99,255,0.3); }
@@ -294,6 +299,10 @@ body {
   color: var(--text-muted);
   transition: all 0.18s ease;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  text-decoration: none;
 }
 .pill:hover { background: rgba(108,99,255,0.12); color: var(--text); border-color: rgba(108,99,255,0.35); }
 .pill.active { background: rgba(108,99,255,0.2); color: #a899ff; border-color: rgba(108,99,255,0.5); }
@@ -326,6 +335,9 @@ body {
 
 /* ── Eyebrow ────────────────────────────────────────────────────── */
 .eyebrow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 0.7rem;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -338,8 +350,8 @@ details summary { cursor: pointer; list-style: none; user-select: none; }
 details summary::-webkit-details-marker { display: none; }
 details[open] .chevron { transform: rotate(180deg); }
 .chevron { transition: transform 0.22s ease; }
-details[open] .faq-body { max-height: 500px; }
-.faq-body { max-height: 0; overflow: hidden; transition: max-height 0.3s ease; }
+details[open] .faq-body { max-height: 600px; }
+.faq-body { max-height: 0; overflow: hidden; transition: max-height 0.35s ease; }
 
 /* ── Orb ────────────────────────────────────────────────────────── */
 .orb {
@@ -383,6 +395,7 @@ th { font-size: 0.7rem; font-weight: 700; letter-spacing: 0.06em; text-transform
 
 /* ── Code ──────────────────────────────────────────────────────── */
 code { font-family: 'Cascadia Code', Consolas, 'Courier New', monospace; }
+pre  { overflow-x: auto; }
 
 /* ── Line clamp ─────────────────────────────────────────────────── */
 .line-clamp-2 {
@@ -391,10 +404,6 @@ code { font-family: 'Cascadia Code', Consolas, 'Courier New', monospace; }
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-
-/* ── Sticky ─────────────────────────────────────────────────────── */
-.sticky { position: sticky; }
-.top-24 { top: 6rem; }
 
 /* ── Scrollbar for code blocks ──────────────────────────────────── */
 pre::-webkit-scrollbar { height: 4px; }
@@ -406,5 +415,26 @@ pre::-webkit-scrollbar-thumb { background: rgba(108,99,255,0.4); border-radius: 
   .hide-sm { display: none !important; }
 }
 
-/* ── Prose typography for legal pages ─────────────────────────── */
-.prose-legal p { margin-bottom: 0.75rem; }
+/* Navbar: hide desktop nav links, show hamburger button below 768px */
+@media (max-width: 768px) {
+  .hide-mobile-nav  { display: none !important; }
+  .show-mobile-menu-btn { display: flex !important; }
+}
+@media (min-width: 769px) {
+  .show-mobile-menu-btn { display: none !important; }
+  .hide-mobile-nav { display: flex !important; }
+}
+
+/* Footer: 3-col grid on desktop, single col on mobile */
+.footer-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+@media (min-width: 640px) {
+  .footer-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2rem;
+  }
+}
+

@@ -312,9 +312,12 @@ export default function Home() {
       <main id="main-content">
 
         {/* ── Hero ─────────────────────────────────────────────── */}
-        <section className="max-w-5xl mx-auto px-4 sm:px-6 pt-20 sm:pt-28 pb-14" aria-labelledby="hero-heading">
+        <section
+          style={{ maxWidth: '72rem', margin: '0 auto', padding: '5rem 1.5rem 3.5rem' }}
+          aria-labelledby="hero-heading"
+        >
 
-          <div className="flex justify-center mb-5 anim-slide-up delay-0" style={{ opacity: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1.25rem' }} className="anim-slide-up delay-0">
             <span className="badge badge-purple">
               <Zap className="w-2.5 h-2.5 fill-current" /> Free · Instant · No sign-up
             </span>
@@ -322,28 +325,53 @@ export default function Home() {
 
           <h1
             id="hero-heading"
-            className="text-4xl sm:text-6xl md:text-7xl font-black text-center leading-[1.04] tracking-tight mb-5 anim-slide-up delay-75"
-            style={{ fontFamily: 'var(--font-head)', opacity: 0 }}
+            className="anim-slide-up delay-75"
+            style={{
+              fontFamily: 'var(--font-head)',
+              opacity: 0,
+              fontSize: 'clamp(2.4rem, 7vw, 5rem)',
+              fontWeight: 900,
+              color: 'white',
+              textAlign: 'center',
+              lineHeight: 1.06,
+              letterSpacing: '-0.03em',
+              marginBottom: '1.25rem',
+            }}
           >
             Download{' '}<span className="grad-text">Subtitles</span>
-            <br className="hidden sm:block" />{' '}in Seconds
+            <br />{' '}in Seconds
           </h1>
 
-          <p className="text-base sm:text-lg text-center max-w-2xl mx-auto mb-10 leading-relaxed anim-slide-up delay-150"
-            style={{ color: 'var(--text-muted)', opacity: 0 }}>
+          <p
+            className="anim-slide-up delay-150"
+            style={{
+              color: 'var(--text-muted)',
+              opacity: 0,
+              fontSize: 'clamp(0.95rem, 2vw, 1.1rem)',
+              textAlign: 'center',
+              maxWidth: '42rem',
+              margin: '0 auto 2.5rem',
+              lineHeight: 1.7,
+            }}
+          >
             Extract captions from{' '}
-            <strong className="text-white font-semibold">YouTube</strong>,{' '}
-            <strong className="text-white font-semibold">Vimeo</strong>, and{' '}
-            <strong className="text-white font-semibold">Dailymotion</strong>.{' '}
+            <strong style={{ color: 'white', fontWeight: 600 }}>YouTube</strong>,{' '}
+            <strong style={{ color: 'white', fontWeight: 600 }}>Vimeo</strong>, and{' '}
+            <strong style={{ color: 'white', fontWeight: 600 }}>Dailymotion</strong>.{' '}
             Download as SRT, VTT, or TXT — completely free.
           </p>
 
           {/* Search form */}
-          <div className="max-w-3xl mx-auto anim-slide-up delay-225" style={{ opacity: 0 }}>
+          <div
+            className="anim-slide-up delay-225"
+            style={{ maxWidth: '48rem', margin: '0 auto', opacity: 0 }}
+          >
             <form onSubmit={handleSubmit} role="search" aria-label="Subtitle extraction">
-              <div className="input-wrap p-2 sm:p-2.5 flex flex-col sm:flex-row gap-2"
-                style={{ boxShadow: '0 32px 80px rgba(0,0,0,0.5)' }}>
-                <div className="relative flex-1 flex items-center">
+              <div
+                className="input-wrap"
+                style={{ padding: '10px', display: 'flex', flexDirection: 'row', gap: '8px', boxShadow: '0 32px 80px rgba(0,0,0,0.5)', flexWrap: 'wrap' }}
+              >
+                <div style={{ position: 'relative', flex: 1, minWidth: '200px', display: 'flex', alignItems: 'center' }}>
                   <Search className="absolute left-4 w-5 h-5 pointer-events-none" style={{ color: 'var(--text-muted)' }} aria-hidden="true" />
                   <input
                     ref={inputRef}
@@ -482,14 +510,13 @@ export default function Home() {
         {showSections && (
           <>
             {/* How it Works */}
-            <section id="how-it-works" aria-labelledby="hiw-heading" className="max-w-6xl mx-auto px-4 sm:px-6 py-20 sm:py-28">
-              <div className="text-center mb-12">
-                <p className="eyebrow mb-3">Simple Process</p>
-                <h2 id="hiw-heading" className="text-3xl sm:text-4xl font-black text-white tracking-tight"
-                  style={{ fontFamily: 'var(--font-head)' }}>How to Download Subtitles</h2>
-                <p className="mt-3 max-w-md mx-auto text-sm" style={{ color: 'var(--text-muted)' }}>Three steps. No installation, no account.</p>
+            <section id="how-it-works" aria-labelledby="hiw-heading" style={{ maxWidth: '80rem', margin: '0 auto', padding: '5rem 1.5rem' }}>
+              <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+                <p className="eyebrow" style={{ marginBottom: '0.75rem' }}>Simple Process</p>
+                <h2 id="hiw-heading" style={{ fontFamily: 'var(--font-head)', fontSize: 'clamp(1.75rem, 4vw, 2.25rem)', fontWeight: 900, color: 'white', letterSpacing: '-0.02em' }}>How to Download Subtitles</h2>
+                <p style={{ marginTop: '0.75rem', maxWidth: '28rem', margin: '0.75rem auto 0', fontSize: '0.875rem', color: 'var(--text-muted)' }}>Three steps. No installation, no account.</p>
               </div>
-              <div className="grid sm:grid-cols-3 gap-4">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '1rem' }}>
                 <StepCard n="1" title="Copy the URL" desc="Find your video on YouTube, Vimeo, or Dailymotion and copy the link from your browser." delay={0} />
                 <StepCard n="2" title="Paste & Extract" desc="Paste the URL into the search box and click Extract. We detect the platform and fetch all available tracks." delay={100} />
                 <StepCard n="3" title="Pick Format & Download" desc="Choose your language and format — SRT for editors, VTT for web players, TXT for AI tools — and download instantly." delay={200} />
@@ -497,13 +524,12 @@ export default function Home() {
             </section>
 
             {/* Features */}
-            <section id="features" aria-labelledby="features-heading" className="max-w-6xl mx-auto px-4 sm:px-6 py-20 sm:py-28">
-              <div className="text-center mb-12">
-                <p className="eyebrow mb-3">Why SubFetch</p>
-                <h2 id="features-heading" className="text-3xl sm:text-4xl font-black text-white tracking-tight"
-                  style={{ fontFamily: 'var(--font-head)' }}>Built for Speed &amp; Simplicity</h2>
+            <section id="features" aria-labelledby="features-heading" style={{ maxWidth: '80rem', margin: '0 auto', padding: '5rem 1.5rem' }}>
+              <div style={{ textAlign: 'center', marginBottom: '3rem' }}>
+                <p className="eyebrow" style={{ marginBottom: '0.75rem' }}>Why SubFetch</p>
+                <h2 id="features-heading" style={{ fontFamily: 'var(--font-head)', fontSize: 'clamp(1.75rem, 4vw, 2.25rem)', fontWeight: 900, color: 'white', letterSpacing: '-0.02em' }}>Built for Speed &amp; Simplicity</h2>
               </div>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '1rem' }}>
                 {[
                   { icon: <Zap className="w-5 h-5" />, title: 'Lightning Fast', desc: "Runs on Cloudflare's global edge network — subtitle extraction in under a second from anywhere.", delay: 0 },
                   { icon: <Shield className="w-5 h-5" />, title: 'Privacy First', desc: 'Stateless. We never store your URLs or subtitle data. Every request is independent.', delay: 80 },
@@ -516,7 +542,7 @@ export default function Home() {
             </section>
 
             {/* FAQ */}
-            <section id="faq" aria-labelledby="faq-heading" className="max-w-3xl mx-auto px-4 sm:px-6 py-20 sm:py-28">
+            <section id="faq" aria-labelledby="faq-heading" style={{ maxWidth: '48rem', margin: '0 auto', padding: '5rem 1.5rem' }}>
               <div className="text-center mb-12">
                 <p className="eyebrow mb-3">Got Questions?</p>
                 <h2 id="faq-heading" className="text-3xl sm:text-4xl font-black text-white tracking-tight"
@@ -528,7 +554,7 @@ export default function Home() {
             </section>
 
             {/* CTA */}
-            <section className="max-w-5xl mx-auto px-4 sm:px-6 pb-24" aria-labelledby="cta-heading">
+            <section style={{ maxWidth: '72rem', margin: '0 auto', padding: '0 1.5rem 6rem' }} aria-labelledby="cta-heading">
               <div className="card p-10 sm:p-14 text-center relative overflow-hidden">
                 <div aria-hidden="true" className="absolute inset-0 pointer-events-none"
                   style={{ background: 'linear-gradient(135deg, rgba(108,99,255,0.07) 0%, rgba(168,85,247,0.04) 100%)' }} />
