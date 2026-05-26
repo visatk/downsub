@@ -1,69 +1,38 @@
 import { Hono } from 'hono';
+import { youtubeExtractor } from './extractors/youtube';
+import { vimeoExtractor } from './extractors/vimeo';
 
-type Env = {
-  // Add bindings here if needed (e.g., D1, KV)
-};
+// Register all supported platforms here
+const supportedExtractors = [
+  youtubeExtractor,
+  vimeoExtractor
+  // Add dailymotionExtractor, vikiExtractor here later
+];
 
-const app = new Hono<{ Bindings: Env }>();
+const app = new Hono();
 
 app.get('/api/extract', async (c) => {
-  const videoUrl = c.req.query('url');
+  const targetUrl = c.req.query('url');
   
-  if (!videoUrl) {
-    return c.json({ error: 'YouTube URL is required' }, 400);
+  if (!targetUrl) {
+    return c.json({ error: 'URL is required' }, 400);
+  }
+
+  // Find the correct extractor based on the URL
+  const extractor = supportedExtractors.find(e => e.canHandle(targetUrl));
+  
+  if (!extractor) {
+    return c.json({ 
+      error: 'Platform not supported yet. We currently support YouTube and Vimeo.' 
+    }, 400);
   }
 
   try {
-    // Extract Video ID
-    const videoIdMatch = videoUrl.match(/(?:v=|\/)([0-9A-Za-z_-]{11}).*/);
-    const videoId = videoIdMatch ? videoIdMatch[1] : null;
-
-    if (!videoId) {
-      return c.json({ error: 'Invalid YouTube URL' }, 400);
-    }
-
-    // Fetch the YouTube watch page
-    const response = await fetch(`https://www.youtube.com/watch?v=${videoId}`, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept-Language': 'en-US,en;q=0.9',
-      }
-    });
-
-    const html = await response.text();
-
-    // Extract ytInitialPlayerResponse using Regex
-    const regex = /ytInitialPlayerResponse\s*=\s*({.+?})\s*;\s*(?:var\s+meta|<\/script|\n)/;
-    const match = html.match(regex);
-
-    if (!match) {
-      return c.json({ error: 'Could not extract video data. The video might be private or age-restricted.' }, 500);
-    }
-
-    const data = JSON.parse(match[1]);
-    const tracks = data?.captions?.playerCaptionsTracklistRenderer?.captionTracks;
-
-    if (!tracks || tracks.length === 0) {
-      return c.json({ error: 'No subtitles found for this video.' }, 404);
-    }
-
-    // Format the tracks
-    const subtitles = tracks.map((track: any) => ({
-      language: track.name.simpleText,
-      languageCode: track.languageCode,
-      url: track.baseUrl,
-      kind: track.kind || 'standard'
-    }));
-
-    return c.json({
-      videoId,
-      title: data?.videoDetails?.title || 'Unknown Title',
-      subtitles
-    });
-
-  } catch (error) {
-    console.error('Extraction error:', error);
-    return c.json({ error: 'Internal server error while processing the request.' }, 500);
+    const result = await extractor.extract(targetUrl);
+    return c.json(result);
+  } catch (error: any) {
+    console.error(`[${extractor.id}] Extraction error:`, error);
+    return c.json({ error: error.message || 'Internal processing error' }, 500);
   }
 });
 
