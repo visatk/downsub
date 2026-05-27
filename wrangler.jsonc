@@ -1,6 +1,6 @@
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "downsub",
+	"name": "cybercoderbd",
 	"main": "worker/index.ts",
 	"compatibility_date": "2026-05-25",
 	"assets": {
